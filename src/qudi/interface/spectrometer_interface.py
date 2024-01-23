@@ -24,7 +24,7 @@ from qudi.core.module import Base
 
 
 class SpectrometerInterface(Base):
-    """ This is the interface class to define the controls for the simple optical spectrometer.
+    """This is the interface class to define the controls for the simple optical spectrometer.
 
     This is interface is very basic, a more advanced one is in progress.
 
@@ -32,9 +32,10 @@ class SpectrometerInterface(Base):
     documentation/programming_style.md
 
     """
+
     @abstractmethod
     def record_spectrum(self):
-        """ Launch an acquisition a wait for a response
+        """Launch an acquisition a wait for a response
 
         @return (2, N) float array: The acquired array with the wavelength in meter in the first row and measured value
                                     int the second
@@ -44,7 +45,7 @@ class SpectrometerInterface(Base):
     @property
     @abstractmethod
     def exposure_time(self):
-        """ Get the acquisition exposure time
+        """Get the acquisition exposure time
 
         @return (float): Exposure time in second
         """
@@ -53,8 +54,23 @@ class SpectrometerInterface(Base):
     @exposure_time.setter
     @abstractmethod
     def exposure_time(self, value):
-        """ Set the acquisition exposure time
+        """Set the acquisition exposure time
 
         @param (float) value: Exposure time to set in second
         """
+        pass
+
+    @property
+    @abstractmethod
+    def shutter_open(self) -> bool:
+        """Get the acquisition shutter state
+
+        @return (bool): Shutter state
+        """
+        pass
+
+    @shutter_open.setter
+    @abstractmethod
+    def shutter_open(self, value):
+        """Set the acquisition shutter state"""
         pass

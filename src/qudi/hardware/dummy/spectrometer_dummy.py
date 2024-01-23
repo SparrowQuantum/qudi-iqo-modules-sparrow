@@ -28,7 +28,7 @@ import numpy as np
 
 
 class SpectrometerDummy(SpectrometerInterface):
-    """ Dummy spectrometer module.
+    """Dummy spectrometer module.
 
     Shows a silicon vacancy spectrum at liquid helium temperatures.
 
@@ -42,27 +42,29 @@ class SpectrometerDummy(SpectrometerInterface):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._exposure = 0.5
+        self._shutter_open = True
 
     def on_activate(self):
-        """ Activate module.
-        """
+        """Activate module."""
         pass
 
     def on_deactivate(self):
-        """ Deactivate module.
-        """
+        """Deactivate module."""
         pass
 
     def record_spectrum(self):
-        """ Record a dummy spectrum.
+        """Record a dummy spectrum.
 
-            @return ndarray: 1024-value ndarray containing wavelength and intensity of simulated spectrum
+        @return ndarray: 1024-value ndarray containing wavelength and intensity of simulated spectrum
         """
         length = 1024
 
         data = np.empty((2, length), dtype=np.double)
         data[0] = np.arange(730, 750, 20 / length)
-        data[1] = np.random.uniform(0, 2000, length)
+        data[1] = np.random.uniform(0, 1000, length)
+
+        if self._shutter_open:
+            data[1] = data[1] + 1500 * np.exp(-((data[0] - 736.5) ** 2) / 0.225**2)
 
         # lorentz, params = self._fitLogic.make_multiplelorentzian_model(no_of_functions=4)
         # sigma = 0.05
@@ -89,12 +91,20 @@ class SpectrometerDummy(SpectrometerInterface):
 
     @property
     def exposure_time(self):
-        """ Get exposure time.
-        """
+        """Get exposure time."""
         return self._exposure
 
     @exposure_time.setter
     def exposure_time(self, value):
-        """ Set exposure time.
-        """
+        """Set exposure time."""
         self._exposure = float(value)
+
+    @property
+    def shutter_open(self):
+        """Get shutter status."""
+        return self._shutter_open
+
+    @shutter_open.setter
+    def shutter_open(self, value):
+        """Set shutter status."""
+        self._shutter_open = bool(value)
