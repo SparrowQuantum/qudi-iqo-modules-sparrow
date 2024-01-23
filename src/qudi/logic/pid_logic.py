@@ -26,11 +26,11 @@ from qudi.core.connector import Connector
 from qudi.core.statusvariable import StatusVar
 from qudi.core.configoption import ConfigOption
 from qudi.util.mutex import Mutex
-from qudi.core.module import Base
-from qtpy import QtCore
+from qudi.core.module import LogicBase
+from PySide2 import QtCore
 
 
-class PIDLogic(Base):
+class PIDLogic(LogicBase):
     """ Logic module to monitor and control a PID process
 
     Example config:
@@ -75,6 +75,7 @@ class PIDLogic(Base):
         self._controller = self.controller()
 
         self.history = np.zeros([3, self.buffer_length])
+        self.history[:] = np.nan
         self.saving_state = False
         self.timer = QtCore.QTimer()
         self.timer.setSingleShot(True)
@@ -152,6 +153,7 @@ class PIDLogic(Base):
     def reset_buffer(self):
         """ Reset the buffer, clearing out all data. """
         self.history = np.zeros([3, self.buffer_length])
+        self.history[:] = np.nan
 
     def get_kp(self):
         """ Return the proportional constant.
@@ -200,7 +202,7 @@ class PIDLogic(Base):
 
             @return float: current set point of the PID controller
         """
-        return self.history[2, -1]
+        return self._controller.get_setpoint()
 
     def set_setpoint(self, setpoint):
         """ Set the current setpoint of the PID controller.
