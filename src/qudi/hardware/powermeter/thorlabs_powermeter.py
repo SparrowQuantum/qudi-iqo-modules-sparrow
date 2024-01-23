@@ -32,6 +32,7 @@ import platform
 from ctypes import byref, c_bool, c_char_p, cdll, c_double, c_int, c_int16, c_long, create_string_buffer, c_uint32
 
 from qudi.core.configoption import ConfigOption
+from qudi.interface.powermeter_interface import PowerMeterInterface, PowerMeterConstraints, PowerLimitMode
 from qudi.interface.process_control_interface import ProcessValueInterface, ProcessControlConstraints
 
 # constants
@@ -40,7 +41,7 @@ MIN_VALUE = c_int16(1)
 MAX_VALUE = c_int16(2)
 
 
-class ThorlabsPowermeter(ProcessValueInterface):
+class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
     """ Hardware module for Thorlabs powermeter using the TLPM library.
 
     Example config:
@@ -52,16 +53,17 @@ class ThorlabsPowermeter(ProcessValueInterface):
             # If omitted, the module will connect to the first powermeter found on the system.
             # The module logs an info message with the addresses of all available powermeters upon activation.
             address: 'USB0::0x1313::0x8078::P0012345::INSTR'
-            wavelength: 637.0
+            wavelength: 940.0
     """
 
-    _address = ConfigOption('address', missing='warn')
-    _wavelength = ConfigOption('wavelength', default=None, missing='warn')
+    _address: str = ConfigOption('address', missing='warn')
+    _wavelength: float = ConfigOption('wavelength', default=None, missing='warn')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._channel_name = 'Power'
         self._constraints = None
+        self._pm_constrains = None
         self._is_active = False
 
         self._dll = None
@@ -129,9 +131,7 @@ class ThorlabsPowermeter(ProcessValueInterface):
                                + 'Switcher application to switch your powermeter to the TLPM driver.')
             raise e
 
-        # set wavelength if defined in config
-        if self._wavelength is not None:
-            self._set_wavelength(self._wavelength)
+        self._is_active = True
 
         # get power range
         min_power, max_power = c_double(), c_double()
@@ -148,8 +148,22 @@ class ThorlabsPowermeter(ProcessValueInterface):
             dtypes={self._channel_name: float},
         )
 
+        self._pm_constrains = PowerMeterConstraints(
+            wavelength={'default': 930,
+                        'bounds': (self._get_wavelength_range())},
+            power_range={'default': (min_power.value + max_power.value) / 2,
+                         'bounds': (min_power.value, max_power.value)},
+            power_limit_modes=(PowerLimitMode.AUTO, PowerLimitMode.MANUAL),
+            power_range_mode_default=PowerLimitMode.AUTO
+        )
+
+        # set wavelength if defined in config
+        if self._wavelength is not None:
+            self.set_wavelength(self._wavelength)
+
         # close connection since default state is not active
         self._close_powermeter()
+        self._is_active = False
 
     def on_deactivate(self):
         """ Stops the module """
@@ -217,6 +231,120 @@ class ThorlabsPowermeter(ProcessValueInterface):
         if not self.get_activity_state(self._channel_name):
             raise AssertionError('Channel is not active. Activate first before getting process value.')
         return self._get_power()
+    
+    def get_power(self):
+        """
+        Get the measured power from the powermeter
+
+        @return float: Measured power in Watts
+        """
+        self._check_enabled()
+        return self._get_power()
+    
+    def get_wavelength(self) -> float:
+        """
+        Get the currently set wavelength of the powermeter
+
+        @return float: The set wavelength
+        """
+        self._check_enabled()
+        wavelength = c_double()
+        result = self._dll.TLPM_getWavelength(self._devSession, SET_VALUE, byref(wavelength))
+        self._test_for_error(result)
+        return wavelength.value
+
+    def set_wavelength(self, wavelength: float):
+        """
+        Set the wavelength of the powermeter
+
+        @param float wavelength: The wavelength to set in nanometers
+        """
+        """ Set the new measurement wavelength in nanometers """
+        self._check_enabled()
+        try:
+            self.pm_constraints.wavelength.check_value_range(wavelength)
+        except ValueError as e:
+            self.log.exception("Wavelength out of bounds.")
+            raise e
+
+        result = self._dll.TLPM_setWavelength(self._devSession, c_double(wavelength))
+        self._test_for_error(result)
+    
+    def get_power_range(self) -> float:
+        """
+        Gets the max power measurable by the power meter
+
+        @return float: max power in watts
+        """
+        self._check_enabled()
+        power = c_double()
+        result = self._dll.TLPM_getPowerRange(self._devSession, SET_VALUE, byref(power))
+        self._test_for_error(result)
+        return power.value
+    
+    def set_power_range(self, limit: float):
+        """
+        Sets the max power measurable by the power meter in watts
+
+        @param float limit: max power in watts
+        """
+        self._check_enabled()
+        try:
+            self.pm_constraints.power_range.check_value_range(limit)
+        except ValueError as e:
+            self.log.exception("Power limit out of bounds.")
+            raise e
+        result = self._dll.TLPM_setPowerRange(self._devSession, c_double(limit))
+        self._test_for_error(result)
+
+    def get_auto_power_range(self) -> bool:
+        """
+        Returns true if the power meter automatically controls the power limit.
+
+        @return bool: True if auto limit is on, False otherwise.
+        """
+        self._check_enabled()
+        autorange = c_int16()
+        result = self._dll.TLPM_getPowerAutorange(self._devSession, byref(autorange))
+        self._test_for_error(result)
+        return autorange.value == 1
+    
+    def set_auto_power_range(self, enabled):
+        """
+        Enable or disable auto power limit.
+
+        @param enabled: True to enable auto powerlimit. False otherwise
+        """
+        self._check_enabled()
+        mode = PowerLimitMode(enabled)
+        mode = c_int16(1) if mode.value else c_int16(0)
+        result = self._dll.TLPM_setPowerAutoRange(self._devSession, mode)
+        self._test_for_error(result)
+    
+    def get_enabled(self) -> bool:
+        """
+        Returns true if the power meter is active. False otherwise.
+
+        @return bool
+        """
+        return self.get_activity_state(self._channel_name)
+    
+    def set_enabled(self, enable: bool):
+        """
+        Enables or disables the power meter.
+
+        @param bool enable: Enable or disable the powermeter.
+        """
+        self.set_activity_state(self._channel_name, enable)
+
+    @property
+    def pm_constraints(self) -> PowerMeterConstraints:
+        """
+        Read-only property containing the constraints of the powermeter.
+
+        @return PowerMeterConstraints
+        """
+        return self._pm_constrains.copy()
 
     def _init_powermeter(self, reset=False):
         """
@@ -248,13 +376,6 @@ class ThorlabsPowermeter(ProcessValueInterface):
             raise e
         return power.value
 
-    def _get_wavelength(self):
-        """ Return the current measurement wavelength in nanometers """
-        wavelength = c_double()
-        result = self._dll.TLPM_getWavelength(self._devSession, SET_VALUE, byref(wavelength))
-        self._test_for_error(result)
-        return wavelength.value
-
     def _get_wavelength_range(self):
         """ Return the measurement wavelength range of the power meter in nanometers """
         wavelength_min = c_double()
@@ -266,11 +387,7 @@ class ThorlabsPowermeter(ProcessValueInterface):
 
         return wavelength_min.value, wavelength_max.value
 
-    def _set_wavelength(self, value):
-        """ Set the new measurement wavelength in nanometers """
-        min_wl, max_wl = self._get_wavelength_range()
-        if min_wl <= value <= max_wl:
-            result = self._dll.TLPM_setWavelength(self._devSession, c_double(value))
-            self._test_for_error(result)
-        else:
-            self.log.error(f'Wavelength {value} nm is out of the range {min_wl} to {max_wl} nm.')
+    def _check_enabled(self):
+        if not self.get_enabled():
+            raise AssertionError("Power meter is not active. Activate by calling "
+                                 "'set_enabled(True)'")
