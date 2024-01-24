@@ -154,22 +154,11 @@ class WavemeterDummy(WavemeterInterface):
         # Stop the actual wavemeter measurement
         self.log.info('stopping Wavemeter')
 
-    def get_current_wavelength(self, kind="air"):
-        """ This method returns the current wavelength.
+    def get_current_wavelength(self):
+        return float(self._current_wavelength) * 1e-9
 
-        @param string kind: can either be "air" or "vac" for the wavelength in air or vacuum, respectively.
-
-        @return: wavelength (or negative value for errors)
-        """
-        if kind in "air":
-            # for air we need the convert the current wavelength. T
-            return float(self._current_wavelength)
-        if kind in "vac":
-            # for vacuum just return the current wavelength
-            return float(self._current_wavelength)
-
-        self.log.error(f'Incorrect measurement mode "{kind}". Can be "air" or "vac"')
-        return None
+    def get_current_frequency(self) -> float:
+        return 299792458.0 / self.get_current_wavelength()
 
     def get_timing(self):
         """ Get the timing of the internal measurement thread.
