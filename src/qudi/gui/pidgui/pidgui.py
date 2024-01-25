@@ -97,8 +97,8 @@ class PIDGui(GuiBase):
         self._mw.setDockNestingEnabled(True)
 
         # Plot labels.
-        self.process_value_unit = self._pid_logic.process_value_unit()
-        self.control_value_unit = self._pid_logic.control_value_unit()
+        self.process_value_unit = self._pid_logic.process_value_unit
+        self.control_value_unit = self._pid_logic.control_value_unit
         control_value_limits = self._pid_logic.get_control_limits()
 
         self._pw = self._mw.trace_PlotWidget
@@ -165,6 +165,7 @@ class PIDGui(GuiBase):
 
         #####################
         # set units and range if applicable
+        self._mw.setpointDoubleSpinBox.setRange(-np.inf, np.inf)
         self._mw.setpointDoubleSpinBox.setSuffix(self.process_value_unit)
         self._mw.manualDoubleSpinBox.setRange(*control_value_limits)
         self._mw.manualDoubleSpinBox.setSuffix(self.control_value_unit)
@@ -326,10 +327,12 @@ class PIDGui(GuiBase):
         self._pid_logic.set_kd(self._mw.D_DoubleSpinBox.value())
 
     def _setpoint_changed(self):
-        self._pid_logic.set_setpoint(self._mw.setpointDoubleSpinBox.value())
+        if self._mw.pidEnabledCheckBox.checkState() == QtCore.Qt.CheckState.Checked:
+            self._pid_logic.set_setpoint(self._mw.setpointDoubleSpinBox.value())
 
     def _manual_value_changed(self):
-        self._pid_logic.set_manual_value(self._mw.manualDoubleSpinBox.value())
+        if self._mw.pidEnabledCheckBox.checkState() == QtCore.Qt.CheckState.Unchecked:
+            self._pid_logic.set_manual_value(self._mw.manualDoubleSpinBox.value())
 
     def _pid_enabled_changed(self, state):
         self._pid_logic.set_enabled(state)

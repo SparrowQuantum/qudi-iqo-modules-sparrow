@@ -309,6 +309,7 @@ class SoftPIDController(PIDControllerInterface):
         """
         return self.cv
 
+    @property
     def control_value_unit(self):
         """ read-only property for the unit of the control value
         """
@@ -323,6 +324,7 @@ class SoftPIDController(PIDControllerInterface):
         """
         return self.pv
 
+    @property
     def process_value_unit(self):
         """ read-only property for the unit of the process value
         """

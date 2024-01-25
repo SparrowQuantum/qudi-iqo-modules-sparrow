@@ -24,9 +24,8 @@ If not, see <https://www.gnu.org/licenses/>.
 import random
 from PySide2 import QtCore
 
-from qudi.core.module import Base
 from qudi.core.configoption import ConfigOption
-from qudi.interface.wavemeter_interface import WavemeterInterface
+from qudi.interface.wavemeter_interface import WavemeterInterface, OperationState, WavemeterErrorStatus
 from qudi.util.mutex import Mutex
 
 
@@ -62,10 +61,9 @@ class HardwarePull(QtCore.QObject):
         range_step = 0.1
 
         # update as long as the status is busy
-        if self._parentclass.module_state() == 'running':
+        if self._parentclass.module_state() == 'locked':
             # get the current wavelength from the wavemeter
             self._parentclass._current_wavelength += random.uniform(-range_step, range_step)
-            self._parentclass._current_wavelength2 += random.uniform(-range_step, range_step)
 
 
 class WavemeterDummy(WavemeterInterface):
@@ -73,10 +71,10 @@ class WavemeterDummy(WavemeterInterface):
 
     Example config for copy-paste:
 
-    temp_tsys:
-        module.Class: 'wavemeter_dummy.WavemeterDummy'
+    wavemeter_dummy:
+        module.Class: 'dummy.wavemeter_dummy.WavemeterDummy'
         options:
-            measurement_timing: 10.0
+            measurement_timing: 10.0 # in milliseconds
 
     """
     # config opts
@@ -91,14 +89,14 @@ class WavemeterDummy(WavemeterInterface):
         self.threadlock = Mutex()
 
         # the current wavelength read by the wavemeter in nm (vac)
-        self._current_wavelength = 700.0
-        self._current_wavelength2 = 700.0
+        self._current_wavelength = 940.0
+
+        # Current error status. For debug only
+        self._error_status = WavemeterErrorStatus.NO_ERRORS
 
     def on_activate(self):
         """ Activate module.
         """
-        self.log.warning("This module has not been tested on the new qudi core."
-                         "Use with caution and contribute bug fixed back, please.")
         # create an indepentent thread for the hardware communication
         self.hardware_thread = QtCore.QThread()
 
@@ -107,7 +105,7 @@ class WavemeterDummy(WavemeterInterface):
         self._hardware_pull.moveToThread(self.hardware_thread)
 
         # connect the signals in and out of the threaded object
-        self.sig_handle_timer.connect(self._hardware_pull.handle_timer)
+        self.sig_handle_timer.connect(self._hardware_pull.handle_timer, QtCore.Qt.QueuedConnection)
 
         # start the event loop for the hardware
         self.hardware_thread.start()
@@ -116,39 +114,32 @@ class WavemeterDummy(WavemeterInterface):
         """ Deactivate module.
         """
 
-        self.stop_acqusition()
+        if self.module_state == 'locked':
+            self.stop_acquisition()
         self.hardware_thread.quit()
         self.sig_handle_timer.disconnect()
 
-    #############################################
-    # Methods of the main class
-    #############################################
     def start_acquisition(self):
-        """ Method to start the wavemeter software.
-
-        @return int: error code (0:OK, -1:error)
-
+        """
+        Method to start the wavemeter software.
         Also the actual threaded method for getting the current wavemeter reading is started.
         """
 
         # first check its status
-        if self.module_state() == 'running':
+        if self.module_state() == 'locked':
             self.log.error('Wavemeter busy')
-            return -1
+            return
 
-        self.module_state.run()
+        self.module_state.lock()
         # actually start the wavemeter
-        self.log.warning('starting Wavemeter')
+        self.log.info('starting Wavemeter')
 
         # start the measuring thread
         self.sig_handle_timer.emit(True)
 
-        return 0
-
     def stop_acquisition(self):
-        """ Stops the Wavemeter from measuring and kills the thread that queries the data.
-
-        @return int: error code (0:OK, -1:error)
+        """
+        Stops the Wavemeter from measuring and kills the thread that queries the data.
         """
         # check status just for a sanity check
         if self.module_state() == 'idle' or self.module_state() == 'deactivated':
@@ -158,47 +149,21 @@ class WavemeterDummy(WavemeterInterface):
             # stop the measurement thread
             self.sig_handle_timer.emit(False)
             # set status to idle again
-            self.module_state.stop()
+            self.module_state.unlock()
 
         # Stop the actual wavemeter measurement
-        self.log.warning('stopping Wavemeter')
+        self.log.info('stopping Wavemeter')
 
-        return 0
+    def get_current_wavelength(self):
+        return float(self._current_wavelength) * 1e-9
 
-    def get_current_wavelength(self, kind="air"):
-        """ This method returns the current wavelength.
-
-        @param string kind: can either be "air" or "vac" for the wavelength in air or vacuum, respectively.
-
-        @return float: wavelength (or negative value for errors)
-        """
-        if kind in "air":
-            # for air we need the convert the current wavelength. T
-            return float(self._current_wavelength)
-        if kind in "vac":
-            # for vacuum just return the current wavelength
-            return float(self._current_wavelength)
-        return -2.0
-
-    def get_current_wavelength2(self, kind="air"):
-        """ This method returns the current wavelength of the second input channel.
-
-        @param string kind: can either be "air" or "vac" for the wavelength in air or vacuum, respectively.
-
-        @return float: wavelength (or negative value for errors)
-        """
-        if kind in "air":
-            # for air we need the convert the current wavelength.
-            return float(self._current_wavelength2)
-        if kind in "vac":
-            # for vacuum just return the current wavelength
-            return float(self._current_wavelength2)
-        return -2.0
+    def get_current_frequency(self) -> float:
+        return 299792458.0 / self.get_current_wavelength()
 
     def get_timing(self):
         """ Get the timing of the internal measurement thread.
 
-        @return float: clock length in second
+        @return: clock length in second
         """
         return self._measurement_timing
 
@@ -206,8 +171,18 @@ class WavemeterDummy(WavemeterInterface):
         """ Set the timing of the internal measurement thread.
 
         @param float timing: clock length in second
-
-        @return int: error code (0:OK, -1:error)
         """
         self._measurement_timing = float(timing)
-        return 0
+
+    def get_operation_state(self) -> OperationState:
+        if self.module_state() == 'locked':
+            return OperationState.MEASUREMENT
+        return OperationState.STOPPED
+
+    def get_error_status(self) -> WavemeterErrorStatus:
+        """
+        Gets the current error status of the wavemeter
+
+        @return: Wavemeter error status
+        """
+        return self._error_status
