@@ -248,10 +248,7 @@ class Lightfield(SpectrometerInterface):
 
     @property
     def shutter_open(self) -> bool:
-        if (
-            self.shutter == "AlwaysOpen"
-            or self.shutter == "Normal"
-        ):
+        if self.shutter == "AlwaysOpen" or self.shutter == "Normal":
             return True
         else:
             return False
@@ -271,7 +268,12 @@ class Lightfield(SpectrometerInterface):
     @property
     def exposure_time(self) -> float:
         """Get the exposure time in seconds"""
-        return self._get_value(self.cam_setting.ShutterTimingExposureTime)
+
+        value_in_milliseconds = self._get_value(
+            self.cam_setting.ShutterTimingExposureTime
+        )
+
+        return float(value_in_milliseconds / 1e3)
 
     @exposure_time.setter
     def exposure_time(self, value: float):
@@ -282,7 +284,12 @@ class Lightfield(SpectrometerInterface):
             raise ValueError(
                 f"Exposure time {value} not in range [{self.exposure_time_limits['min']}, {self.exposure_time_limits['max']}]"
             )
-        self._set_value(self.cam_setting.ShutterTimingExposureTime, value)
+
+        value_in_milliseconds = value * 1e3
+
+        self._set_value(
+            self.cam_setting.ShutterTimingExposureTime, value_in_milliseconds
+        )
 
     def record_spectrum(self) -> np.ndarray:
         """Record a single spectrum and return it as a numpy array (2,N) where N is the number of pixels"""
