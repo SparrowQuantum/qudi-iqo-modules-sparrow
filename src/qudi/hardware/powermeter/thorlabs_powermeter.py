@@ -29,11 +29,29 @@ If not, see <https://www.gnu.org/licenses/>.
 """
 
 import platform
-from ctypes import byref, c_bool, c_char_p, cdll, c_double, c_int, c_int16, c_long, create_string_buffer, c_uint32
+from ctypes import (
+    byref,
+    c_bool,
+    c_char_p,
+    cdll,
+    c_double,
+    c_int,
+    c_int16,
+    c_long,
+    create_string_buffer,
+    c_uint32,
+)
 
 from qudi.core.configoption import ConfigOption
-from qudi.interface.powermeter_interface import PowerMeterInterface, PowerMeterConstraints, PowerLimitMode
-from qudi.interface.process_control_interface import ProcessValueInterface, ProcessControlConstraints
+from qudi.interface.powermeter_interface import (
+    PowerMeterInterface,
+    PowerMeterConstraints,
+    PowerLimitMode,
+)
+from qudi.interface.process_control_interface import (
+    ProcessValueInterface,
+    ProcessControlConstraints,
+)
 
 # constants
 SET_VALUE = c_int16(0)
@@ -42,7 +60,7 @@ MAX_VALUE = c_int16(2)
 
 
 class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
-    """ Hardware module for Thorlabs powermeter using the TLPM library.
+    """Hardware module for Thorlabs powermeter using the TLPM library.
 
     Example config:
 
@@ -56,12 +74,12 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
             wavelength: 940.0
     """
 
-    _address: str = ConfigOption('address', missing='warn')
-    _wavelength: float = ConfigOption('wavelength', default=None, missing='warn')
+    _address: str = ConfigOption("address", missing="warn")
+    _wavelength: float = ConfigOption("wavelength", default=None, missing="warn")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._channel_name = 'Power'
+        self._channel_name = "Power"
         self._constraints = None
         self._pm_constrains = None
         self._is_active = False
@@ -79,15 +97,21 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
             raise ValueError
 
     def on_activate(self):
-        """ Startup the module """
+        """Startup the module"""
         # load the dll
         try:
-            if platform.architecture()[0] == '32bit':
-                self._dll = cdll.LoadLibrary('C:/Program Files (x86)/IVI Foundation/VISA/WinNT/Bin/TLPM_32.dll')
+            if platform.architecture()[0] == "32bit":
+                self._dll = cdll.LoadLibrary(
+                    "C:/Program Files (x86)/IVI Foundation/VISA/WinNT/Bin/TLPM_32.dll"
+                )
             else:
-                self._dll = cdll.LoadLibrary('C:/Program Files/IVI Foundation/VISA/Win64/Bin/TLPM_64.dll')
+                self._dll = cdll.LoadLibrary(
+                    "C:/Program Files/IVI Foundation/VISA/Win64/Bin/TLPM_64.dll"
+                )
         except FileNotFoundError as e:
-            self.log.error('TLPM _dll not found. Is the Thorlabs Optical Power Monitor software installed?')
+            self.log.error(
+                "TLPM _dll not found. Is the Thorlabs Optical Power Monitor software installed?"
+            )
             raise e
 
         # get list of available power meters
@@ -99,62 +123,71 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         resource_name = create_string_buffer(1024)
 
         for i in range(0, device_count.value):
-            result = self._dll.TLPM_getRsrcName(self._devSession, c_int(i), resource_name)
+            result = self._dll.TLPM_getRsrcName(
+                self._devSession, c_int(i), resource_name
+            )
             self._test_for_error(result)
             available_power_meters.append(c_char_p(resource_name.raw).value.decode())
 
-        self.log.info(f'Available power meters: {available_power_meters}')
+        self.log.info(f"Available power meters: {available_power_meters}")
 
         # figure out address of powermeter
         if self._address is None:
             try:
                 first = available_power_meters[0]
             except IndexError:
-                self.log.exception('No powermeter available on system.')
+                self.log.exception("No powermeter available on system.")
                 raise ValueError
             else:
-                self.log.info(f'Using first available powermeter with address {first}.')
+                self.log.info(f"Using first available powermeter with address {first}.")
                 self._device_address = first
         else:
             if self._address in available_power_meters:
-                self.log.info(f'Using powermeter with address {self._address}.')
+                self.log.info(f"Using powermeter with address {self._address}.")
                 self._device_address = self._address
             else:
-                self.log.exception(f'No powermeter with address {self._address} found.')
+                self.log.exception(f"No powermeter with address {self._address} found.")
                 raise ValueError
 
         # try connecting to the powermeter
         try:
             self._init_powermeter(reset=True)
         except ValueError as e:
-            self.log.exception('Connection to powermeter was unsuccessful. Try using the Power Meter Driver '
-                               + 'Switcher application to switch your powermeter to the TLPM driver.')
+            self.log.exception(
+                "Connection to powermeter was unsuccessful. Try using the Power Meter Driver "
+                + "Switcher application to switch your powermeter to the TLPM driver."
+            )
             raise e
 
         self._is_active = True
 
         # get power range
         min_power, max_power = c_double(), c_double()
-        result = self._dll.TLPM_getPowerRange(self._devSession, MIN_VALUE, byref(min_power))
+        result = self._dll.TLPM_getPowerRange(
+            self._devSession, MIN_VALUE, byref(min_power)
+        )
         self._test_for_error(result)
-        result = self._dll.TLPM_getPowerRange(self._devSession, MAX_VALUE, byref(max_power))
+        result = self._dll.TLPM_getPowerRange(
+            self._devSession, MAX_VALUE, byref(max_power)
+        )
         self._test_for_error(result)
 
         # set constraints
         self._constraints = ProcessControlConstraints(
             process_channels=(self._channel_name,),
-            units={self._channel_name: 'W'},
+            units={self._channel_name: "W"},
             limits={self._channel_name: (min_power.value, max_power.value)},
             dtypes={self._channel_name: float},
         )
 
         self._pm_constrains = PowerMeterConstraints(
-            wavelength={'default': 930,
-                        'bounds': (self._get_wavelength_range())},
-            power_range={'default': (min_power.value + max_power.value) / 2,
-                         'bounds': (min_power.value, max_power.value)},
+            wavelength={"default": 930, "bounds": (self._get_wavelength_range())},
+            power_range={
+                "default": (min_power.value + max_power.value) / 2,
+                "bounds": (min_power.value, max_power.value),
+            },
             power_limit_modes=(PowerLimitMode.AUTO, PowerLimitMode.MANUAL),
-            power_range_mode_default=PowerLimitMode.AUTO
+            power_range_mode_default=PowerLimitMode.AUTO,
         )
 
         # set wavelength if defined in config
@@ -166,12 +199,12 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         self._is_active = False
 
     def on_deactivate(self):
-        """ Stops the module """
+        """Stops the module"""
         self.set_activity_state(self._channel_name, False)
 
     @property
     def process_values(self):
-        """ Read-Only property returning a snapshot of current process values for all channels.
+        """Read-Only property returning a snapshot of current process values for all channels.
 
         @return dict: Snapshot of the current process values (values) for all channels (keys)
         """
@@ -180,7 +213,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
 
     @property
     def constraints(self):
-        """ Read-Only property holding the constraints for this hardware module.
+        """Read-Only property holding the constraints for this hardware module.
         See class ProcessControlConstraints for more details.
 
         @return ProcessControlConstraints: Hardware constraints
@@ -188,10 +221,11 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         return self._constraints
 
     def set_activity_state(self, channel, active):
-        """ Set activity state. State is bool type and refers to active (True) and inactive (False).
-        """
+        """Set activity state. State is bool type and refers to active (True) and inactive (False)."""
         if channel != self._channel_name:
-            raise AssertionError(f'Invalid channel name. Only valid channel is: {self._channel_name}')
+            raise AssertionError(
+                f"Invalid channel name. Only valid channel is: {self._channel_name}"
+            )
         if active != self._is_active:
             self._is_active = active
             if active:
@@ -200,38 +234,46 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
                 self._close_powermeter()
 
     def get_activity_state(self, channel):
-        """ Get activity state for given channel.
+        """Get activity state for given channel.
         State is bool type and refers to active (True) and inactive (False).
         """
         if channel != self._channel_name:
-            raise AssertionError(f'Invalid channel name. Only valid channel is: {self._channel_name}')
+            raise AssertionError(
+                f"Invalid channel name. Only valid channel is: {self._channel_name}"
+            )
         return self._is_active
 
     @property
     def activity_states(self):
-        """ Current activity state (values) for each channel (keys).
+        """Current activity state (values) for each channel (keys).
         State is bool type and refers to active (True) and inactive (False).
         """
         return {self._channel_name: self._is_active}
 
     @activity_states.setter
     def activity_states(self, values):
-        """ Set activity state (values) for multiple channels (keys).
+        """Set activity state (values) for multiple channels (keys).
         State is bool type and refers to active (True) and inactive (False).
         """
         for ch, enabled in values.items():
             if ch != self._channel_name:
-                raise AssertionError(f'Invalid channel name. Only valid channel is: {self._channel_name}')
+                raise AssertionError(
+                    f"Invalid channel name. Only valid channel is: {self._channel_name}"
+                )
             self.set_activity_state(ch, enabled)
 
     def get_process_value(self, channel):
-        """ Return a measured value """
+        """Return a measured value"""
         if channel != self._channel_name:
-            raise AssertionError(f'Invalid channel name. Only valid channel is: {self._channel_name}')
+            raise AssertionError(
+                f"Invalid channel name. Only valid channel is: {self._channel_name}"
+            )
         if not self.get_activity_state(self._channel_name):
-            raise AssertionError('Channel is not active. Activate first before getting process value.')
+            raise AssertionError(
+                "Channel is not active. Activate first before getting process value."
+            )
         return self._get_power()
-    
+
     def get_power(self):
         """
         Get the measured power from the powermeter
@@ -240,7 +282,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         """
         self._check_enabled()
         return self._get_power()
-    
+
     def get_wavelength(self) -> float:
         """
         Get the currently set wavelength of the powermeter
@@ -249,7 +291,9 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         """
         self._check_enabled()
         wavelength = c_double()
-        result = self._dll.TLPM_getWavelength(self._devSession, SET_VALUE, byref(wavelength))
+        result = self._dll.TLPM_getWavelength(
+            self._devSession, SET_VALUE, byref(wavelength)
+        )
         self._test_for_error(result)
         return wavelength.value
 
@@ -269,7 +313,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
 
         result = self._dll.TLPM_setWavelength(self._devSession, c_double(wavelength))
         self._test_for_error(result)
-    
+
     def get_power_range(self) -> float:
         """
         Gets the max power measurable by the power meter
@@ -281,7 +325,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         result = self._dll.TLPM_getPowerRange(self._devSession, SET_VALUE, byref(power))
         self._test_for_error(result)
         return power.value
-    
+
     def set_power_range(self, limit: float):
         """
         Sets the max power measurable by the power meter in watts
@@ -308,7 +352,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         result = self._dll.TLPM_getPowerAutorange(self._devSession, byref(autorange))
         self._test_for_error(result)
         return autorange.value == 1
-    
+
     def set_auto_power_range(self, enabled):
         """
         Enable or disable auto power limit.
@@ -320,7 +364,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         mode = c_int16(1) if mode.value else c_int16(0)
         result = self._dll.TLPM_setPowerAutoRange(self._devSession, mode)
         self._test_for_error(result)
-    
+
     def get_enabled(self) -> bool:
         """
         Returns true if the power meter is active. False otherwise.
@@ -328,7 +372,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         @return bool
         """
         return self.get_activity_state(self._channel_name)
-    
+
     def set_enabled(self, enable: bool):
         """
         Enables or disables the power meter.
@@ -352,42 +396,49 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         :param reset: whether to reset the powermeter upon connection
         """
         id_query, reset_device = c_bool(True), c_bool(reset)
-        address = create_string_buffer(self._device_address.encode('utf-8'))
-        result = self._dll.TLPM_init(address, id_query, reset_device, byref(self._devSession))
+        address = create_string_buffer(self._device_address.encode("utf-8"))
+        result = self._dll.TLPM_init(
+            address, id_query, reset_device, byref(self._devSession)
+        )
         try:
             self._test_for_error(result)
         except ValueError as e:
-            self.log.exception('Connection to powermeter was unsuccessful.')
+            self.log.exception("Connection to powermeter was unsuccessful.")
             raise e
 
     def _close_powermeter(self):
-        """ Close connection to powermeter. """
+        """Close connection to powermeter."""
         result = self._dll.TLPM_close(self._devSession)
         self._test_for_error(result)
 
     def _get_power(self):
-        """ Return the power reading from the power meter """
+        """Return the power reading from the power meter"""
         power = c_double()
         result = self._dll.TLPM_measPower(self._devSession, byref(power))
         try:
             self._test_for_error(result)
         except ValueError as e:
-            self.log.exception('Getting power from powermeter was unsuccessful.')
+            self.log.exception("Getting power from powermeter was unsuccessful.")
             raise e
         return power.value
 
     def _get_wavelength_range(self):
-        """ Return the measurement wavelength range of the power meter in nanometers """
+        """Return the measurement wavelength range of the power meter in nanometers"""
         wavelength_min = c_double()
         wavelength_max = c_double()
-        result = self._dll.TLPM_getWavelength(self._devSession, MIN_VALUE, byref(wavelength_min))
+        result = self._dll.TLPM_getWavelength(
+            self._devSession, MIN_VALUE, byref(wavelength_min)
+        )
         self._test_for_error(result)
-        result = self._dll.TLPM_getWavelength(self._devSession, MAX_VALUE, byref(wavelength_max))
+        result = self._dll.TLPM_getWavelength(
+            self._devSession, MAX_VALUE, byref(wavelength_max)
+        )
         self._test_for_error(result)
 
         return wavelength_min.value, wavelength_max.value
 
     def _check_enabled(self):
         if not self.get_enabled():
-            raise AssertionError("Power meter is not active. Activate by calling "
-                                 "'set_enabled(True)'")
+            raise AssertionError(
+                "Power meter is not active. Activate by calling 'set_enabled(True)'"
+            )
