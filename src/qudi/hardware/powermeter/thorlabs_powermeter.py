@@ -442,3 +442,50 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
             raise AssertionError(
                 "Power meter is not active. Activate by calling 'set_enabled(True)'"
             )
+
+    def set_bandwidth(self, bandwidth: str) -> None:
+        """
+        This function sets the instrument's photodiode input filter state.
+        Notes:
+        (1) The function is only available on PM100D, PM100A, PM100USB, PM200, PM400.
+            :param bandwidth: "high", or "low" bandwidth
+        """
+
+        self._check_enabled()
+
+        bandwidth = bandwidth.lower()
+
+        value_dict = {"high": 0, "low": 1}
+        if bandwidth not in value_dict.keys():
+            raise ValueError("'bandwidth' should be set to 'high', or 'low'.")
+
+        input_filter_state = value_dict[bandwidth]
+
+        try:
+            result = self._dll.TLPM_setInputFilterState(
+                self._devSession, c_int16(input_filter_state)
+            )
+        except Exception as e:
+            self.log.exception("Setting bandwidth mode was unsuccessful.")
+            raise e
+        else:
+            self._test_for_error(result)
+
+    def get_bandwidth(self) -> str:
+        """
+        This function returns the instrument's photodiode input filter state.
+        Notes:
+        (1) The function is only available on PM100D, PM100A, PM100USB, PM200, PM400.
+        :return str: 'high' or 'low' bandwidth
+        """
+
+        self._check_enabled()
+        input_filter_state = c_int16()
+        result = self._dll.TLPM_getInputFilterState(
+            self._devSession, byref(input_filter_state)
+        )
+        self._test_for_error(result)
+
+        bandwidth_modes = ["high", "low"]
+        bandwidth = bandwidth_modes[int(input_filter_state.value)]
+        return bandwidth
