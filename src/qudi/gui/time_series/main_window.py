@@ -24,7 +24,7 @@ __all__ = ['TraceSettingsDockWidget', 'TimeSeriesGuiMainWindow']
 
 import os
 from pyqtgraph import PlotWidget
-from PySide2 import QtCore, QtWidgets, QtGui
+from qtpy import QtCore, QtWidgets, QtGui
 
 from qudi.util.widgets.scientific_spinbox import ScienDSpinBox
 from qudi.util.paths import get_artwork_dir

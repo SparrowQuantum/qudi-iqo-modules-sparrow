@@ -27,7 +27,7 @@ from qudi.core.statusvariable import StatusVar
 from qudi.core.configoption import ConfigOption
 from qudi.util.mutex import Mutex
 from qudi.core.module import LogicBase
-from PySide2 import QtCore
+from qtpy import QtCore
 
 
 class PIDLogic(LogicBase):

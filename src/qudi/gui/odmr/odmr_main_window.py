@@ -23,7 +23,7 @@ __all__ = ('OdmrMainWindow',)
 
 import os
 import datetime
-from PySide2 import QtCore, QtWidgets, QtGui
+from qtpy import QtCore, QtWidgets, QtGui
 
 from qudi.util.widgets.scientific_spinbox import ScienDSpinBox
 from qudi.util.paths import get_artwork_dir

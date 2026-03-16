@@ -22,8 +22,8 @@ If not, see <https://www.gnu.org/licenses/>.
 __all__ = ['SpectrometerDataWidget']
 
 import pyqtgraph as pg
-from PySide2 import QtCore
-from PySide2 import QtWidgets
+from qtpy import QtCore
+from qtpy import QtWidgets
 
 from qudi.util.colordefs import QudiPalettePale as palette
 from qudi.util.widgets.toggle_switch import ToggleSwitch

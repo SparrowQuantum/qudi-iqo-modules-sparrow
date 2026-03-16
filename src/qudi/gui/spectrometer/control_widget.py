@@ -21,8 +21,8 @@ If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = ['SpectrometerControlWidget']
 
-from PySide2 import QtCore
-from PySide2 import QtWidgets
+from qtpy import QtCore
+from qtpy import QtWidgets
 
 from qudi.util.widgets.toggle_switch import ToggleSwitch
 

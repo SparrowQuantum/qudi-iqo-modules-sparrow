@@ -63,7 +63,8 @@ dependencies = [
     "nidaqmx>=0.5.7",
     "numpy>=1.23.3,<2.0",
     "pyqtgraph>=0.13.1",
-    "PySide2",  # get fixed version from core
+    "qtpy>=2.4.0",
+    "PySide6>=6.6.0",
     "PyVisa>=1.12.0",
     "scipy>=1.9.1",
     "zaber_motion>=2.14.6",

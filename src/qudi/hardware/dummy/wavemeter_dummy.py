@@ -22,7 +22,7 @@ If not, see <https://www.gnu.org/licenses/>.
 """
 
 import random
-from PySide2 import QtCore
+from qtpy import QtCore
 
 from qudi.core.configoption import ConfigOption
 from qudi.interface.wavemeter_interface import WavemeterInterface, OperationState, WavemeterErrorStatus

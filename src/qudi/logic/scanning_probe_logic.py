@@ -26,7 +26,7 @@ from uuid import UUID
 import copy as cp
 from collections import OrderedDict
 
-from PySide2 import QtCore
+from qtpy import QtCore
 import numpy as np
 
 from qudi.core.module import LogicBase

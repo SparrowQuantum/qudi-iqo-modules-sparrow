@@ -20,7 +20,7 @@ If not, see <https://www.gnu.org/licenses/>.
 """
 import os.path
 
-from PySide2 import QtCore
+from qtpy import QtCore
 import numpy as np
 import time
 import datetime

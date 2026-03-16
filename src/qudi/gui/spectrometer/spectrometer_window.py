@@ -23,9 +23,9 @@ __all__ = ['SpectrometerMainWindow']
 
 import os
 import importlib
-from PySide2 import QtCore
-from PySide2 import QtWidgets
-from PySide2 import QtGui
+from qtpy import QtCore
+from qtpy import QtWidgets
+from qtpy import QtGui
 
 from qudi.util.paths import get_artwork_dir
 from qudi.util.widgets.advanced_dockwidget import AdvancedDockWidget
