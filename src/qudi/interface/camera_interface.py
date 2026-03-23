@@ -19,9 +19,11 @@ See the GNU Lesser General Public License for more details.
 You should have received a copy of the GNU Lesser General Public License along with qudi.
 If not, see <https://www.gnu.org/licenses/>.
 """
+from __future__ import annotations
 
 from abc import abstractmethod
 from qudi.core.module import Base
+from numpy.typing import NDArray
 
 
 class CameraInterface(Base):
@@ -29,7 +31,7 @@ class CameraInterface(Base):
     """
 
     @abstractmethod
-    def get_name(self):
+    def get_name(self) -> str:
         """ Retrieve an identifier of the camera that the GUI can print
 
         @return string: name for the camera
@@ -37,7 +39,7 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def get_size(self):
+    def get_size(self) -> tuple[int, int]:
         """ Retrieve size of the image in pixel
 
         @return tuple: Size (width, height)
@@ -45,7 +47,7 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def support_live_acquisition(self):
+    def support_live_acquisition(self) -> bool:
         """ Return whether or not the camera can take care of live acquisition
 
         @return bool: True if supported, False if not
@@ -53,7 +55,7 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def start_live_acquisition(self):
+    def start_live_acquisition(self) -> bool:
         """ Start a continuous acquisition
 
         @return bool: Success ?
@@ -61,7 +63,7 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def start_single_acquisition(self):
+    def start_single_acquisition(self) -> bool:
         """ Start a single acquisition
 
         @return bool: Success ?
@@ -69,7 +71,7 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def stop_acquisition(self):
+    def stop_acquisition(self) -> bool:
         """ Stop/abort live or single acquisition
 
         @return bool: Success ?
@@ -77,7 +79,7 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def get_acquired_data(self):
+    def get_acquired_data(self) -> NDArray:
         """ Return an array of last acquired image.
 
         @return numpy array: image data in format [[row],[row]...]
@@ -87,7 +89,7 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def set_exposure(self, exposure):
+    def set_exposure(self, exposure: float) -> float:
         """ Set the exposure time in seconds
 
         @param float exposure: desired new exposure time
@@ -97,7 +99,7 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def get_exposure(self):
+    def get_exposure(self) -> float:
         """ Get the exposure time in seconds
 
         @return float exposure time
@@ -105,7 +107,7 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def set_gain(self, gain):
+    def set_gain(self, gain: float) -> float:
         """ Set the gain
 
         @param float gain: desired new gain
@@ -115,7 +117,7 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def get_gain(self):
+    def get_gain(self) -> float:
         """ Get the gain
 
         @return float: exposure gain
@@ -123,7 +125,7 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def get_ready_state(self):
+    def get_ready_state(self) -> bool:
         """ Is the camera ready for an acquisition ?
 
         @return bool: ready ?
