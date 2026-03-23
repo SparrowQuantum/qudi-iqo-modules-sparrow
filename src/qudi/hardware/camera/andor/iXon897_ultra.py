@@ -759,5 +759,6 @@ class IxonUltra(CameraInterface):
         self._cur_image = image_array
         return image_array
 
+    @property
     def new_image_data_signal(self) -> None:
         return None
