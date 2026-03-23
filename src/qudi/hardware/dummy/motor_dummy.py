@@ -339,16 +339,16 @@ class MotorDummy(MotorInterface):
             if self._x_axis.label in param_list:
                 vel[self._x_axis.label] = self._x_axis.vel
             if self._y_axis.label in param_list:
-                vel[self._x_axis.label] = self._y_axis.vel
+                vel[self._y_axis.label] = self._y_axis.vel
             if self._z_axis.label in param_list:
-                vel[self._x_axis.label] = self._z_axis.vel
+                vel[self._z_axis.label] = self._z_axis.vel
             if self._phi_axis.label in param_list:
                 vel[self._phi_axis.label] = self._phi_axis.vel
 
         else:
-            vel[self._x_axis.label] = self._x_axis.get_vel
-            vel[self._y_axis.label] = self._y_axis.get_vel
-            vel[self._z_axis.label] = self._z_axis.get_vel
+            vel[self._x_axis.label] = self._x_axis.vel
+            vel[self._y_axis.label] = self._y_axis.vel
+            vel[self._z_axis.label] = self._z_axis.vel
             vel[self._phi_axis.label] = self._phi_axis.vel
 
         return vel
@@ -393,8 +393,8 @@ class MotorDummy(MotorInterface):
                         '"{0}" to possition {1}, since it exceeds the limits '
                         '[{2},{3}] ! Command is ignored!'.format(
                             self._z_axis.label, desired_vel,
-                            constr['pos_min'],
-                            constr['pos_max']))
+                            constr['vel_min'],
+                            constr['vel_max']))
             else:
                 self._z_axis.vel = desired_vel
 
