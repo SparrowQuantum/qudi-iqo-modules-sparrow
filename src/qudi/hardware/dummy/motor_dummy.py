@@ -61,7 +61,7 @@ class MotorDummy(MotorInterface):
     def on_deactivate(self):
         pass
 
-    def get_constraints(self):
+    def get_constraints(self) -> dict[str, dict[str, float | str | list[str] | None]]:
         axis0 = {'label': self._x_axis.label,
                  'unit': 'm',
                  'ramp': ['Sinus', 'Linear'],
@@ -121,7 +121,7 @@ class MotorDummy(MotorInterface):
             axis3['label']: axis3
         }
 
-    def move_rel(self,  param_dict):
+    def move_rel(self,  param_dict: dict[str, float]) -> None:
         curr_pos_dict = self.get_pos()
         constraints = self.get_constraints()
 
@@ -195,7 +195,7 @@ class MotorDummy(MotorInterface):
                 self._phi_axis.pos = self._phi_axis.pos + move_phi
 
 
-    def move_abs(self, param_dict):
+    def move_abs(self, param_dict: dict[str, float]) -> None:
         constraints = self.get_constraints()
 
         if param_dict.get(self._x_axis.label) is not None:
@@ -261,11 +261,10 @@ class MotorDummy(MotorInterface):
                 self._make_wait_after_movement()
                 self._phi_axis.pos = desired_pos
 
-    def abort(self):
+    def abort(self) -> None:
         self.log.info('MotorDummy: Movement stopped!')
-        return 0
 
-    def get_pos(self, param_list=None):
+    def get_pos(self, param_list: list[str] | None = None) -> dict[str, float]:
         pos = {}
         if param_list is not None:
             if self._x_axis.label in param_list:
@@ -288,7 +287,7 @@ class MotorDummy(MotorInterface):
 
         return pos
 
-    def get_status(self, param_list=None):
+    def get_status(self, param_list: list[str] | None = None) -> dict[str, int]:
         status = {}
         if param_list is not None:
             if self._x_axis.label in param_list:
@@ -311,7 +310,7 @@ class MotorDummy(MotorInterface):
 
         return status
 
-    def calibrate(self, param_list=None):
+    def calibrate(self, param_list: list[str] | None = None) -> None:
         if param_list is not None:
             if self._x_axis.label in param_list:
                 self._x_axis.pos = 0.0
@@ -331,9 +330,7 @@ class MotorDummy(MotorInterface):
             self._z_axis.pos = 0.0
             self._phi_axis.pos = 0.0
 
-        return 0
-
-    def get_velocity(self, param_list=None):
+    def get_velocity(self, param_list: list[str] | None = None) -> dict[str, float]:
         vel = {}
         if param_list is not None:
             if self._x_axis.label in param_list:
@@ -353,7 +350,7 @@ class MotorDummy(MotorInterface):
 
         return vel
 
-    def set_velocity(self, param_dict=None):
+    def set_velocity(self, param_dict: dict[str, float]) -> None:
         constraints = self.get_constraints()
 
         if param_dict.get(self._x_axis.label) is not None:
