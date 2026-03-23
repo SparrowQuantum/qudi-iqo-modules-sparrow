@@ -138,7 +138,7 @@ class CameraInterface(Base):
     @abstractmethod
     def new_image_data_signal(self) -> Signal | None:
         """Signal emitted when new image data is available.
-        
+
         This signal is optional and can be None.
 
         @return Signal | None: signal or None
