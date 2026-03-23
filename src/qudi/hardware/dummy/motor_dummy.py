@@ -21,7 +21,6 @@ If not, see <https://www.gnu.org/licenses/>.
 """
 
 import time
-from collections import OrderedDict
 from dataclasses import dataclass
 
 from qudi.core import ConfigOption
@@ -63,29 +62,6 @@ class MotorDummy(MotorInterface):
         pass
 
     def get_constraints(self):
-        """ Retrieve the hardware constrains from the motor device.
-
-        @return dict: dict with constraints for the magnet hardware. These
-                      constraints will be passed via the logic to the GUI so
-                      that proper display elements with boundary conditions
-                      could be made.
-
-        Provides all the constraints for each axis of a motorized stage
-        (like total travel distance, velocity, ...)
-        Each axis has its own dictionary, where the label is used as the
-        identifier throughout the whole module. The dictionaries for each axis
-        are again grouped together in a constraints dictionary in the form
-
-            {'<label_axis0>': axis0 }
-
-        where axis0 is again a dict with the possible values defined below. The
-        possible keys in the constraint are defined here in the interface file.
-        If the hardware does not support the values for the constraints, then
-        insert just None. If you are not sure about the meaning, look in other
-        hardware files to get an impression.
-        """
-        constraints = OrderedDict()
-
         axis0 = {'label': self._x_axis.label,
                  'unit': 'm',
                  'ramp': ['Sinus', 'Linear'],
@@ -138,32 +114,14 @@ class MotorDummy(MotorInterface):
                  'acc_max': None,
                  'acc_step': None}
 
-        # assign the parameter container for x to a name which will identify it
-        constraints[axis0['label']] = axis0
-        constraints[axis1['label']] = axis1
-        constraints[axis2['label']] = axis2
-        constraints[axis3['label']] = axis3
-
-        return constraints
+        return {
+            axis0['label']: axis0,
+            axis1['label']: axis1,
+            axis2['label']: axis2,
+            axis3['label']: axis3
+        }
 
     def move_rel(self,  param_dict):
-        """ Moves stage in given direction (relative movement)
-
-        @param dict param_dict: dictionary, which passes all the relevant
-                                parameters, which should be changed.
-                                With get_constraints() you can obtain all
-                                possible parameters of that stage. According to
-                                this parameter set you have to pass a dictionary
-                                with keys that are called like the parameters
-                                from get_constraints() and assign a SI value to
-                                that. For a movement in x the dict should e.g.
-                                have the form:
-                                    dict = { 'x' : 23 }
-                                where the label 'x' corresponds to the chosen
-                                axis label.
-
-        A smart idea would be to ask the position after the movement.
-        """
         curr_pos_dict = self.get_pos()
         constraints = self.get_constraints()
 
@@ -524,5 +482,5 @@ class MotorDummy(MotorInterface):
 
     def _make_wait_after_movement(self):
         """ Define a time which the dummy should wait after each movement. """
-        time.sleep(self._wait_after_movement)
+        time.sleep(self.wait_after_movement)
 
