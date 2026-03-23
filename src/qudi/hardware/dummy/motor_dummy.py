@@ -20,17 +20,22 @@ You should have received a copy of the GNU Lesser General Public License along w
 If not, see <https://www.gnu.org/licenses/>.
 """
 
-from collections import OrderedDict
 import time
+from collections import OrderedDict
+from dataclasses import dataclass
 
 from qudi.core.module import Base
+
 from qudi.interface.motor_interface import MotorInterface
 
 
-class MotorAxisDummy:
+@dataclass
+class MotorDummyAxis:
     """ Generic dummy motor representing one axis. """
-    def __init__(self, label):
-        self.label = label
+    label: str
+    pos: float = 0.0
+    vel: float = 0.0
+    status: int = 0
 
 
 class MotorDummy(Base, MotorInterface):
@@ -39,7 +44,7 @@ class MotorDummy(Base, MotorInterface):
     Example config for copy-paste:
 
     motor_dummy:
-        module.Class: 'motor.motor_dummy.MotorDummy'
+        module.Class: 'dummy.motor_dummy.MotorDummy'
 
     """
 
@@ -50,10 +55,10 @@ class MotorDummy(Base, MotorInterface):
                          "Use with caution and contribute bug fixed back, please.")
 
         # these label should be actually set by the config.
-        self._x_axis = MotorAxisDummy('x')
-        self._y_axis = MotorAxisDummy('y')
-        self._z_axis = MotorAxisDummy('z')
-        self._phi_axis = MotorAxisDummy('phi')
+        self._x_axis = MotorDummyAxis('x')
+        self._y_axis = MotorDummyAxis('y')
+        self._z_axis = MotorDummyAxis('z')
+        self._phi_axis = MotorDummyAxis('phi')
 
         self._wait_after_movement = 1 #in seconds
 
