@@ -24,12 +24,15 @@ See the GNU Lesser General Public License for more details.
 You should have received a copy of the GNU Lesser General Public License along with qudi.
 If not, see <https://www.gnu.org/licenses/>.
 """
+from __future__ import annotations
 
-from enum import Enum
 from ctypes import *
-import numpy as np
+from enum import Enum
 
+import numpy as np
+from PySide2.QtCore import Signal
 from qudi.core.configoption import ConfigOption
+
 from qudi.interface.camera_interface import CameraInterface
 
 
@@ -760,5 +763,5 @@ class IxonUltra(CameraInterface):
         return image_array
 
     @property
-    def new_image_data_signal(self) -> None:
+    def new_image_data_signal(self) -> Signal | None:
         return None
