@@ -20,6 +20,8 @@ You should have received a copy of the GNU Lesser General Public License along w
 If not, see <https://www.gnu.org/licenses/>.
 """
 
+from __future__ import annotations
+
 from abc import abstractmethod
 
 from qudi.core.module import Base
@@ -34,7 +36,7 @@ class MotorInterface(Base):
 
     @abstractmethod
     def get_constraints(self) -> dict[str, dict[str, float | str | list[str] | None]]:
-        """Retrieve the hardware constrains from the motor device.
+        """Retrieve the hardware constraints from the motor device.
 
         @return dict: dict with constraints for the magnet hardware. These
                       constraints will be passed via the logic to the GUI so

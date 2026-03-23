@@ -19,6 +19,7 @@ See the GNU Lesser General Public License for more details.
 You should have received a copy of the GNU Lesser General Public License along with qudi.
 If not, see <https://www.gnu.org/licenses/>.
 """
+from __future__ import annotations
 
 import time
 from dataclasses import dataclass
