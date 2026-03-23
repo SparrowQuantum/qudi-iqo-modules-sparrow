@@ -23,8 +23,10 @@ If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
 from abc import abstractmethod
-from qudi.core.module import Base
+
 from numpy.typing import NDArray
+from PySide2.QtCore import Signal
+from qudi.core.module import Base
 
 
 class CameraInterface(Base):
@@ -129,5 +131,16 @@ class CameraInterface(Base):
         """Is the camera ready for an acquisition ?
 
         @return bool: ready ?
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def new_image_data_signal(self) -> Signal | None:
+        """Signal emitted when new image data is available.
+        
+        This signal is optional and can be None.
+
+        @return Signal | None: signal or None
         """
         pass

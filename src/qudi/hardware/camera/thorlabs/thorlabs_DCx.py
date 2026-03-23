@@ -333,3 +333,5 @@ class CameraThorlabs(CameraInterface):
         """
         return self._gain
 
+    def new_image_data_signal(self) -> None:
+        return None
