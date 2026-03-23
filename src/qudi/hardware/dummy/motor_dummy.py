@@ -24,8 +24,6 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass
 
-from qudi.core.module import Base
-
 from qudi.interface.motor_interface import MotorInterface
 
 
@@ -38,7 +36,7 @@ class MotorDummyAxis:
     status: int = 0
 
 
-class MotorDummy(Base, MotorInterface):
+class MotorDummy(MotorInterface):
     """ This is the dummy class to simulate a motorized stage.
 
     Example config for copy-paste:
