@@ -24,6 +24,8 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass
 
+from qudi.core import ConfigOption
+
 from qudi.interface.motor_interface import MotorInterface
 
 
@@ -43,45 +45,19 @@ class MotorDummy(MotorInterface):
 
     motor_dummy:
         module.Class: 'dummy.motor_dummy.MotorDummy'
+        options:
+            # Time to wait after each movement in seconds.
+            wait_after_movement: 0.1
 
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    wait_after_movement: float = ConfigOption(default=0.1)
 
-        self.log.warning("This module has not been tested on the new qudi core."
-                         "Use with caution and contribute bug fixed back, please.")
-
-        # these label should be actually set by the config.
+    def on_activate(self):
         self._x_axis = MotorDummyAxis('x')
         self._y_axis = MotorDummyAxis('y')
         self._z_axis = MotorDummyAxis('z')
         self._phi_axis = MotorDummyAxis('phi')
-
-        self._wait_after_movement = 1 #in seconds
-
-    #TODO: Checks if configuration is set and is reasonable
-
-    def on_activate(self):
-
-        # PLEASE REMEMBER: DO NOT CALL THE POSITION SIMPLY self.x SINCE IT IS
-        # EXTREMLY DIFFICULT TO SEARCH FOR x GLOBALLY IN A FILE!
-        # Same applies to all other axis. I.e. choose more descriptive names.
-
-        self._x_axis.pos = 0.0
-        self._y_axis.pos = 0.0
-        self._z_axis.pos = 0.0
-        self._phi_axis.pos = 0.0
-
-        self._x_axis.vel = 1.0
-        self._y_axis.vel = 1.0
-        self._z_axis.vel = 1.0
-        self._phi_axis.vel = 1.0
-
-        self._x_axis.status = 0
-        self._y_axis.status = 0
-        self._z_axis.status = 0
-        self._phi_axis.status = 0
 
     def on_deactivate(self):
         pass
