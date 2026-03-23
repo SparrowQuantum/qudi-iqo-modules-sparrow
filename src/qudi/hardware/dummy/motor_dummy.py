@@ -58,12 +58,13 @@ class MotorDummy(MotorInterface):
         self._y_axis = MotorDummyAxis("y")
         self._z_axis = MotorDummyAxis("z")
         self._phi_axis = MotorDummyAxis("phi")
+        self._axes = [self._x_axis, self._y_axis, self._z_axis, self._phi_axis]
 
     def on_deactivate(self):
         pass
 
     def get_constraints(self) -> dict[str, dict[str, float | str | list[str] | None]]:
-        axis0 = {
+        x_constraints = {
             "label": self._x_axis.label,
             "unit": "m",
             "ramp": ["Sinus", "Linear"],
@@ -77,8 +78,7 @@ class MotorDummy(MotorInterface):
             "acc_max": 0.0,
             "acc_step": 0.0,
         }
-
-        axis1 = {
+        y_constraints = {
             "label": self._y_axis.label,
             "unit": "m",
             "ramp": ["Sinus", "Linear"],
@@ -92,8 +92,7 @@ class MotorDummy(MotorInterface):
             "acc_max": 0.0,
             "acc_step": 0.0,
         }
-
-        axis2 = {
+        z_constraints = {
             "label": self._z_axis.label,
             "unit": "m",
             "ramp": ["Sinus", "Linear"],
@@ -107,8 +106,7 @@ class MotorDummy(MotorInterface):
             "acc_max": 0.0,
             "acc_step": 0.0,
         }
-
-        axis3 = {
+        phi_constraints = {
             "label": self._phi_axis.label,
             "unit": "°",
             "ramp": ["Sinus", "Trapez"],
@@ -122,346 +120,146 @@ class MotorDummy(MotorInterface):
             "acc_max": None,
             "acc_step": None,
         }
-
         return {
-            axis0["label"]: axis0,
-            axis1["label"]: axis1,
-            axis2["label"]: axis2,
-            axis3["label"]: axis3,
+            x_constraints["label"]: x_constraints,
+            y_constraints["label"]: y_constraints,
+            z_constraints["label"]: z_constraints,
+            phi_constraints["label"]: phi_constraints,
         }
 
     def move_rel(self, param_dict: dict[str, float]) -> None:
-        curr_pos_dict = self.get_pos()
+        if not param_dict:
+            return
+
+        cur_pos_dict = self.get_pos()
         constraints = self.get_constraints()
 
-        if param_dict.get(self._x_axis.label) is not None:
-            move_x = param_dict[self._x_axis.label]
-            curr_pos_x = curr_pos_dict[self._x_axis.label]
+        for axis in self._axes:
+            distance = param_dict.get(axis.label)
+            if distance is None:
+                continue
 
-            if (curr_pos_x + move_x > constraints[self._x_axis.label]["pos_max"]) or (
-                curr_pos_x + move_x < constraints[self._x_axis.label]["pos_min"]
-            ):
+            cur_constraints = constraints[axis.label]
+            pos_min = cur_constraints["pos_min"]
+            pos_max = cur_constraints["pos_max"]
+            desired_pos = cur_pos_dict[axis.label] + distance
+            if not (pos_min <= desired_pos <= pos_max):
                 self.log.warning(
-                    "Cannot make further movement of the axis "
-                    '"{0}" with the step {1}, since the border [{2},{3}] '
-                    "was reached! Ignore command!".format(
-                        self._x_axis.label,
-                        move_x,
-                        constraints[self._x_axis.label]["pos_min"],
-                        constraints[self._x_axis.label]["pos_max"],
-                    )
+                    f"Cannot make further movement of the axis "
+                    f'"{axis.label}" with the step {distance}, '
+                    f"since the border [{pos_min},{pos_max}] "
+                    "was reached. Ignoring the command!"
                 )
             else:
                 self._make_wait_after_movement()
-                self._x_axis.pos = self._x_axis.pos + move_x
-
-        if param_dict.get(self._y_axis.label) is not None:
-            move_y = param_dict[self._y_axis.label]
-            curr_pos_y = curr_pos_dict[self._y_axis.label]
-
-            if (curr_pos_y + move_y > constraints[self._y_axis.label]["pos_max"]) or (
-                curr_pos_y + move_y < constraints[self._y_axis.label]["pos_min"]
-            ):
-                self.log.warning(
-                    "Cannot make further movement of the axis "
-                    '"{0}" with the step {1}, since the border [{2},{3}] '
-                    "was reached! Ignore command!".format(
-                        self._y_axis.label,
-                        move_y,
-                        constraints[self._y_axis.label]["pos_min"],
-                        constraints[self._y_axis.label]["pos_max"],
-                    )
-                )
-            else:
-                self._make_wait_after_movement()
-                self._y_axis.pos = self._y_axis.pos + move_y
-
-        if param_dict.get(self._z_axis.label) is not None:
-            move_z = param_dict[self._z_axis.label]
-            curr_pos_z = curr_pos_dict[self._z_axis.label]
-
-            if (curr_pos_z + move_z > constraints[self._z_axis.label]["pos_max"]) or (
-                curr_pos_z + move_z < constraints[self._z_axis.label]["pos_min"]
-            ):
-                self.log.warning(
-                    "Cannot make further movement of the axis "
-                    '"{0}" with the step {1}, since the border [{2},{3}] '
-                    "was reached! Ignore command!".format(
-                        self._z_axis.label,
-                        move_z,
-                        constraints[self._z_axis.label]["pos_min"],
-                        constraints[self._z_axis.label]["pos_max"],
-                    )
-                )
-            else:
-                self._make_wait_after_movement()
-                self._z_axis.pos = self._z_axis.pos + move_z
-
-        if param_dict.get(self._phi_axis.label) is not None:
-            move_phi = param_dict[self._phi_axis.label]
-            curr_pos_phi = curr_pos_dict[self._phi_axis.label]
-
-            if (
-                curr_pos_phi + move_phi > constraints[self._phi_axis.label]["pos_max"]
-            ) or (
-                curr_pos_phi + move_phi < constraints[self._phi_axis.label]["pos_min"]
-            ):
-                self.log.warning(
-                    "Cannot make further movement of the axis "
-                    '"{0}" with the step {1}, since the border [{2},{3}] '
-                    "was reached! Ignore command!".format(
-                        self._phi_axis.label,
-                        move_phi,
-                        constraints[self._phi_axis.label]["pos_min"],
-                        constraints[self._phi_axis.label]["pos_max"],
-                    )
-                )
-            else:
-                self._make_wait_after_movement()
-                self._phi_axis.pos = self._phi_axis.pos + move_phi
+                axis.pos = desired_pos
 
     def move_abs(self, param_dict: dict[str, float]) -> None:
+        if not param_dict:
+            return
+
         constraints = self.get_constraints()
 
-        if param_dict.get(self._x_axis.label) is not None:
-            desired_pos = param_dict[self._x_axis.label]
-            constr = constraints[self._x_axis.label]
+        for axis in self._axes:
+            desired_pos = param_dict.get(axis.label)
+            if desired_pos is None:
+                continue
 
-            if not (constr["pos_min"] <= desired_pos <= constr["pos_max"]):
+            cur_constraints = constraints[axis.label]
+            pos_min = cur_constraints["pos_min"]
+            pos_max = cur_constraints["pos_max"]
+            if not (pos_min <= desired_pos <= pos_max):
                 self.log.warning(
-                    "Cannot make absolute movement of the axis "
-                    '"{0}" to possition {1}, since it exceeds the limits '
-                    "[{2},{3}] ! Command is ignored!".format(
-                        self._x_axis.label,
-                        desired_pos,
-                        constr["pos_min"],
-                        constr["pos_max"],
-                    )
+                    f"Cannot make absolute movement of the axis "
+                    f'"{axis.label}" to position {desired_pos}, '
+                    f"since it exceeds the limits "
+                    f"[{pos_min},{pos_max}]. Ignoring the command!"
                 )
             else:
                 self._make_wait_after_movement()
-                self._x_axis.pos = desired_pos
-
-        if param_dict.get(self._y_axis.label) is not None:
-            desired_pos = param_dict[self._y_axis.label]
-            constr = constraints[self._y_axis.label]
-
-            if not (constr["pos_min"] <= desired_pos <= constr["pos_max"]):
-                self.log.warning(
-                    "Cannot make absolute movement of the axis "
-                    '"{0}" to possition {1}, since it exceeds the limits '
-                    "[{2},{3}] ! Command is ignored!".format(
-                        self._y_axis.label,
-                        desired_pos,
-                        constr["pos_min"],
-                        constr["pos_max"],
-                    )
-                )
-            else:
-                self._make_wait_after_movement()
-                self._y_axis.pos = desired_pos
-
-        if param_dict.get(self._z_axis.label) is not None:
-            desired_pos = param_dict[self._z_axis.label]
-            constr = constraints[self._z_axis.label]
-
-            if not (constr["pos_min"] <= desired_pos <= constr["pos_max"]):
-                self.log.warning(
-                    "Cannot make absolute movement of the axis "
-                    '"{0}" to possition {1}, since it exceeds the limits '
-                    "[{2},{3}] ! Command is ignored!".format(
-                        self._z_axis.label,
-                        desired_pos,
-                        constr["pos_min"],
-                        constr["pos_max"],
-                    )
-                )
-            else:
-                self._make_wait_after_movement()
-                self._z_axis.pos = desired_pos
-
-        if param_dict.get(self._phi_axis.label) is not None:
-            desired_pos = param_dict[self._phi_axis.label]
-            constr = constraints[self._phi_axis.label]
-
-            if not (constr["pos_min"] <= desired_pos <= constr["pos_max"]):
-                self.log.warning(
-                    "Cannot make absolute movement of the axis "
-                    '"{0}" to possition {1}, since it exceeds the limits '
-                    "[{2},{3}] ! Command is ignored!".format(
-                        self._phi_axis.label,
-                        desired_pos,
-                        constr["pos_min"],
-                        constr["pos_max"],
-                    )
-                )
-            else:
-                self._make_wait_after_movement()
-                self._phi_axis.pos = desired_pos
+                axis.pos = desired_pos
 
     def abort(self) -> None:
         self.log.info("MotorDummy: Movement stopped!")
 
     def get_pos(self, param_list: list[str] | None = None) -> dict[str, float]:
+        if param_list is None:
+            return {
+                self._x_axis.label: self._x_axis.pos,
+                self._y_axis.label: self._y_axis.pos,
+                self._z_axis.label: self._z_axis.pos,
+                self._phi_axis.label: self._phi_axis.pos,
+            }
+
         pos = {}
-        if param_list is not None:
-            if self._x_axis.label in param_list:
-                pos[self._x_axis.label] = self._x_axis.pos
-
-            if self._y_axis.label in param_list:
-                pos[self._y_axis.label] = self._y_axis.pos
-
-            if self._z_axis.label in param_list:
-                pos[self._z_axis.label] = self._z_axis.pos
-
-            if self._phi_axis.label in param_list:
-                pos[self._phi_axis.label] = self._phi_axis.pos
-
-        else:
-            pos[self._x_axis.label] = self._x_axis.pos
-            pos[self._y_axis.label] = self._y_axis.pos
-            pos[self._z_axis.label] = self._z_axis.pos
-            pos[self._phi_axis.label] = self._phi_axis.pos
-
+        for axis in self._axes:
+            if axis.label in param_list:
+                pos[axis.label] = axis.pos
         return pos
 
     def get_status(self, param_list: list[str] | None = None) -> dict[str, int]:
+        # In the dummy, the status is always 0 (OK)
+        if param_list is None:
+            return {
+                self._x_axis.label: self._x_axis.status,
+                self._y_axis.label: self._y_axis.status,
+                self._z_axis.label: self._z_axis.status,
+                self._phi_axis.label: self._phi_axis.status,
+            }
+
         status = {}
-        if param_list is not None:
-            if self._x_axis.label in param_list:
-                status[self._x_axis.label] = self._x_axis.status
-
-            if self._y_axis.label in param_list:
-                status[self._y_axis.label] = self._y_axis.status
-
-            if self._z_axis.label in param_list:
-                status[self._z_axis.label] = self._z_axis.status
-
-            if self._phi_axis.label in param_list:
-                status[self._phi_axis.label] = self._phi_axis.status
-
-        else:
-            status[self._x_axis.label] = self._x_axis.status
-            status[self._y_axis.label] = self._y_axis.status
-            status[self._z_axis.label] = self._z_axis.status
-            status[self._phi_axis.label] = self._phi_axis.status
-
+        for axis in self._axes:
+            if axis.label in param_list:
+                status[axis.label] = axis.status
         return status
 
     def calibrate(self, param_list: list[str] | None = None) -> None:
-        if param_list is not None:
-            if self._x_axis.label in param_list:
-                self._x_axis.pos = 0.0
-
-            if self._y_axis.label in param_list:
-                self._y_axis.pos = 0.0
-
-            if self._z_axis.label in param_list:
-                self._z_axis.pos = 0.0
-
-            if self._phi_axis.label in param_list:
-                self._phi_axis.pos = 0.0
-
+        if param_list is None:
+            for axis in self._axes:
+                axis.pos = 0.0
         else:
-            self._x_axis.pos = 0.0
-            self._y_axis.pos = 0.0
-            self._z_axis.pos = 0.0
-            self._phi_axis.pos = 0.0
+            for axis in self._axes:
+                if axis.label in param_list:
+                    axis.pos = 0.0
 
     def get_velocity(self, param_list: list[str] | None = None) -> dict[str, float]:
-        vel = {}
-        if param_list is not None:
-            if self._x_axis.label in param_list:
-                vel[self._x_axis.label] = self._x_axis.vel
-            if self._y_axis.label in param_list:
-                vel[self._y_axis.label] = self._y_axis.vel
-            if self._z_axis.label in param_list:
-                vel[self._z_axis.label] = self._z_axis.vel
-            if self._phi_axis.label in param_list:
-                vel[self._phi_axis.label] = self._phi_axis.vel
+        if param_list is None:
+            return {
+                self._x_axis.label: self._x_axis.vel,
+                self._y_axis.label: self._y_axis.vel,
+                self._z_axis.label: self._z_axis.vel,
+                self._phi_axis.label: self._phi_axis.vel,
+            }
 
-        else:
-            vel[self._x_axis.label] = self._x_axis.vel
-            vel[self._y_axis.label] = self._y_axis.vel
-            vel[self._z_axis.label] = self._z_axis.vel
-            vel[self._phi_axis.label] = self._phi_axis.vel
-
-        return vel
+        velocity = {}
+        for axis in self._axes:
+            if axis.label in param_list:
+                velocity[axis.label] = axis.vel
+        return velocity
 
     def set_velocity(self, param_dict: dict[str, float]) -> None:
+        if not param_dict:
+            return
+
         constraints = self.get_constraints()
 
-        if param_dict.get(self._x_axis.label) is not None:
-            desired_vel = param_dict[self._x_axis.label]
-            constr = constraints[self._x_axis.label]
+        for axis in self._axes:
+            desired_vel = param_dict.get(axis.label)
+            if desired_vel is None:
+                continue
 
-            if not (constr["vel_min"] <= desired_vel <= constr["vel_max"]):
+            cur_constraints = constraints[axis.label]
+            vel_min = cur_constraints["vel_min"]
+            vel_max = cur_constraints["vel_max"]
+            if not (vel_min <= desired_vel <= vel_max):
                 self.log.warning(
-                    "Cannot set velocity of the axis "
-                    '"{0}" to possition {1}, since it exceeds the limits '
-                    "[{2},{3}] ! Command is ignored!".format(
-                        self._x_axis.label,
-                        desired_vel,
-                        constr["vel_min"],
-                        constr["vel_max"],
-                    )
+                    f"Cannot set velocity of the axis "
+                    f'"{axis.label}" to {desired_vel}, '
+                    f"since it exceeds the limits "
+                    f"[{vel_min},{vel_max}]. Ignoring the command!"
                 )
             else:
-                self._x_axis.vel = desired_vel
-
-        if param_dict.get(self._y_axis.label) is not None:
-            desired_vel = param_dict[self._y_axis.label]
-            constr = constraints[self._y_axis.label]
-
-            if not (constr["vel_min"] <= desired_vel <= constr["vel_max"]):
-                self.log.warning(
-                    "Cannot set velocity of the axis "
-                    '"{0}" to possition {1}, since it exceeds the limits '
-                    "[{2},{3}] ! Command is ignored!".format(
-                        self._y_axis.label,
-                        desired_vel,
-                        constr["vel_min"],
-                        constr["vel_max"],
-                    )
-                )
-            else:
-                self._y_axis.vel = desired_vel
-
-        if param_dict.get(self._z_axis.label) is not None:
-            desired_vel = param_dict[self._z_axis.label]
-            constr = constraints[self._z_axis.label]
-
-            if not (constr["vel_min"] <= desired_vel <= constr["vel_max"]):
-                self.log.warning(
-                    "Cannot set velocity of the axis "
-                    '"{0}" to possition {1}, since it exceeds the limits '
-                    "[{2},{3}] ! Command is ignored!".format(
-                        self._z_axis.label,
-                        desired_vel,
-                        constr["vel_min"],
-                        constr["vel_max"],
-                    )
-                )
-            else:
-                self._z_axis.vel = desired_vel
-
-        if param_dict.get(self._phi_axis.label) is not None:
-            desired_vel = param_dict[self._phi_axis.label]
-            constr = constraints[self._phi_axis.label]
-
-            if not (constr["vel_min"] <= desired_vel <= constr["vel_max"]):
-                self.log.warning(
-                    "Cannot set velocity of the axis "
-                    '"{0}" to possition {1}, since it exceeds the limits '
-                    "[{2},{3}] ! Command is ignored!".format(
-                        self._phi_axis.label,
-                        desired_vel,
-                        constr["pos_min"],
-                        constr["pos_max"],
-                    )
-                )
-            else:
-                self._phi_axis.vel = desired_vel
+                axis.vel = desired_vel
 
     def _make_wait_after_movement(self):
         """Define a time which the dummy should wait after each movement."""
