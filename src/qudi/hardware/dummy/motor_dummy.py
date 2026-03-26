@@ -76,7 +76,7 @@ class MotorDummy(MotorInterface):
             "vel_max": 100,
             "vel_step": 0.01,
             "acc_min": 0.1,
-            "acc_max": 0.0,
+            "acc_max": 1000.0,
             "acc_step": 0.0,
         }
         y_constraints = {
@@ -90,7 +90,7 @@ class MotorDummy(MotorInterface):
             "vel_max": 100,
             "vel_step": 0.01,
             "acc_min": 0.1,
-            "acc_max": 0.0,
+            "acc_max": 100.0,
             "acc_step": 0.0,
         }
         z_constraints = {
@@ -104,7 +104,7 @@ class MotorDummy(MotorInterface):
             "vel_max": 100,
             "vel_step": 0.01,
             "acc_min": 0.1,
-            "acc_max": 0.0,
+            "acc_max": 100.0,
             "acc_step": 0.0,
         }
         phi_constraints = {
