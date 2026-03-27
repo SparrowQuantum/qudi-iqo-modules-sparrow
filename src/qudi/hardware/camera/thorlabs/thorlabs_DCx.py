@@ -24,12 +24,16 @@ See the GNU Lesser General Public License for more details.
 You should have received a copy of the GNU Lesser General Public License along with qudi.
 If not, see <https://www.gnu.org/licenses/>.
 """
+from __future__ import annotations
 
 from ctypes import *
-import numpy as np
 
+import numpy as np
+from PySide2.QtCore import Signal
 from qudi.core.configoption import ConfigOption
+
 from qudi.interface.camera_interface import CameraInterface
+
 from .uc480_h import *
 
 
@@ -333,3 +337,6 @@ class CameraThorlabs(CameraInterface):
         """
         return self._gain
 
+    @property
+    def new_image_data_signal(self) -> Signal | None:
+        return None

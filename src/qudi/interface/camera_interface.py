@@ -20,65 +20,69 @@ You should have received a copy of the GNU Lesser General Public License along w
 If not, see <https://www.gnu.org/licenses/>.
 """
 
+from __future__ import annotations
+
 from abc import abstractmethod
+
+from numpy.typing import NDArray
+from PySide2.QtCore import Signal
 from qudi.core.module import Base
 
 
 class CameraInterface(Base):
-    """ This interface is used to manage and visualize a simple camera
-    """
+    """This interface is used to manage and visualize a simple camera"""
 
     @abstractmethod
-    def get_name(self):
-        """ Retrieve an identifier of the camera that the GUI can print
+    def get_name(self) -> str:
+        """Retrieve an identifier of the camera that the GUI can print
 
         @return string: name for the camera
         """
         pass
 
     @abstractmethod
-    def get_size(self):
-        """ Retrieve size of the image in pixel
+    def get_size(self) -> tuple[int, int]:
+        """Retrieve size of the image in pixel
 
         @return tuple: Size (width, height)
         """
         pass
 
     @abstractmethod
-    def support_live_acquisition(self):
-        """ Return whether or not the camera can take care of live acquisition
+    def support_live_acquisition(self) -> bool:
+        """Return whether or not the camera can take care of live acquisition
 
         @return bool: True if supported, False if not
         """
         pass
 
     @abstractmethod
-    def start_live_acquisition(self):
-        """ Start a continuous acquisition
+    def start_live_acquisition(self) -> bool:
+        """Start a continuous acquisition
 
         @return bool: Success ?
         """
         pass
 
     @abstractmethod
-    def start_single_acquisition(self):
-        """ Start a single acquisition
+    def start_single_acquisition(self) -> bool:
+        """Start a single acquisition
 
         @return bool: Success ?
         """
         pass
 
     @abstractmethod
-    def stop_acquisition(self):
-        """ Stop/abort live or single acquisition
+    def stop_acquisition(self) -> bool:
+        """Stop/abort live or single acquisition
 
         @return bool: Success ?
         """
         pass
 
     @abstractmethod
-    def get_acquired_data(self):
-        """ Return an array of last acquired image.
+    def get_acquired_data(self) -> NDArray:
+        """Return an array of last acquired image.
 
         @return numpy array: image data in format [[row],[row]...]
 
@@ -87,8 +91,8 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def set_exposure(self, exposure):
-        """ Set the exposure time in seconds
+    def set_exposure(self, exposure: float) -> float:
+        """Set the exposure time in seconds
 
         @param float exposure: desired new exposure time
 
@@ -97,16 +101,16 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def get_exposure(self):
-        """ Get the exposure time in seconds
+    def get_exposure(self) -> float:
+        """Get the exposure time in seconds
 
         @return float exposure time
         """
         pass
 
     @abstractmethod
-    def set_gain(self, gain):
-        """ Set the gain
+    def set_gain(self, gain: float) -> float:
+        """Set the gain
 
         @param float gain: desired new gain
 
@@ -115,17 +119,28 @@ class CameraInterface(Base):
         pass
 
     @abstractmethod
-    def get_gain(self):
-        """ Get the gain
+    def get_gain(self) -> float:
+        """Get the gain
 
         @return float: exposure gain
         """
         pass
 
     @abstractmethod
-    def get_ready_state(self):
-        """ Is the camera ready for an acquisition ?
+    def get_ready_state(self) -> bool:
+        """Is the camera ready for an acquisition ?
 
         @return bool: ready ?
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def new_image_data_signal(self) -> Signal | None:
+        """Signal emitted when new image data is available.
+
+        This signal is optional and can be None.
+
+        @return Signal | None: signal or None
         """
         pass
