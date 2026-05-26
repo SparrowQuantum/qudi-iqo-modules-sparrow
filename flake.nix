@@ -22,22 +22,22 @@
         inherit (pkgs) lib;
 
         # Used to retrieve the correct zaber-motion wheel for each platform:
-        zaberPaths = {
+        zaberWheels = {
           x86_64-darwin = {
-            url = https://files.pythonhosted.org/packages/23/19/50da32c76e3541557a45a9748c694833f9bee350469c02ab2c9461b23c84/zaber_motion-9.3.0-py3-none-macosx_10_4_universal2.whl;
-            sha256 = "sha256-9n7sH8Xo5l3mLh2a1Zt+qj6uQG8kK7n5v0eXoAAVh3c=";
+            url = "https://files.pythonhosted.org/packages/23/19/50da32c76e3541557a45a9748c694833f9bee350469c02ab2c9461b23c84/zaber_motion-9.3.0-py3-none-macosx_10_4_universal2.whl";
+            sha256 = "sha256-ZgLQdw+rLT17g4H8e9VBq6f9iO+QTUKlZhDZQtyuHn0=";
           };
           aarch64-darwin = {
-            url = https://files.pythonhosted.org/packages/23/19/50da32c76e3541557a45a9748c694833f9bee350469c02ab2c9461b23c84/zaber_motion-9.3.0-py3-none-macosx_10_4_universal2.whl;
-            sha256 = "sha256-9n7sH8Xo5l3mLh2a1Zt+qj6uQG8kK7n5v0eXoAAVh3c=";
+            url = "https://files.pythonhosted.org/packages/23/19/50da32c76e3541557a45a9748c694833f9bee350469c02ab2c9461b23c84/zaber_motion-9.3.0-py3-none-macosx_10_4_universal2.whl";
+            sha256 = "sha256-ZgLQdw+rLT17g4H8e9VBq6f9iO+QTUKlZhDZQtyuHn0=";
           };
           x86_64-linux = {
-            url = https://files.pythonhosted.org/packages/f4/71/53d59a7aa3cbc0f174fff2566317c79541406846dc107bc7735eead6cf4c/zaber_motion-9.3.0-py3-none-manylinux_2_27_x86_64.whl;
+            url = "https://files.pythonhosted.org/packages/f4/71/53d59a7aa3cbc0f174fff2566317c79541406846dc107bc7735eead6cf4c/zaber_motion-9.3.0-py3-none-manylinux_2_27_x86_64.whl";
             sha256 = "sha256-yauP6djabb1GZkL2M2F1arpInOnKVTEjTfZQKOHA2Ps=";
           };
           aarch64-linux = {
-            url = https://files.pythonhosted.org/packages/67/b0/65a2a03e3c6387a401a05065b9ab7458a06aec35fb156bf5e1888fddf4f6/zaber_motion-9.3.0-py3-none-manylinux_2_27_aarch64.whl;
-            sha256 = "sha256-9n7sH8Xo5l3mLh2a1Zt+qj6uQG8kK7n5v0eXoAAVh3c=";
+            url = "https://files.pythonhosted.org/packages/67/b0/65a2a03e3c6387a401a05065b9ab7458a06aec35fb156bf5e1888fddf4f6/zaber_motion-9.3.0-py3-none-manylinux_2_27_aarch64.whl";
+            sha256 = "sha256-hpVx62ZppvGvC9tfAkpFAERw8lScBcq9jgw1MNuivHs=";
           };
         };
 
@@ -111,8 +111,8 @@
             version = "9.3.0";
             format = "wheel";
             src = pkgs.fetchurl {
-              url = zaberPaths.${system}.url;
-              sha256 = zaberPaths.${system}.sha256;
+              url = zaberWheels.${system}.url;
+              sha256 = zaberWheels.${system}.sha256;
             };
 
             build-system = with super; [
