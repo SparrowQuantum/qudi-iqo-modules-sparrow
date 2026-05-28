@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     qudi-core = {
-      url = "github:SparrowQuantum/qudi-core-sparrow/1bcd6bf3476cf707e719a9947da276c76372f9d7";
+      url = "github:SparrowQuantum/qudi-core-sparrow/2ecb1ba541f4018574532e46af45fc1781e3aa00";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -122,6 +122,10 @@
 
             dependencies = with super; [reactivex];
           };
+
+          # Disable flaky tests
+          watchfiles = super.watchfiles.overridePythonAttrs (_: {doCheck = false;});
+          jupytext = super.jupytext.overridePythonAttrs (_: {doCheck = false;});
         };
 
         qudiLib = qudi-core.lib.${system};
@@ -130,38 +134,42 @@
           packageOverrides = lib.composeExtensions pythonOverrides qudiCoreOverrides;
         };
 
-        qudiCore = qudiLib.mkQudiPackage {inherit pkgs python;};
+        qudiCore = qudiLib.mkQudiCore {inherit pkgs python;};
 
-        pyPkgs = python.pkgs;
-        qudiIqoModules = pyPkgs.buildPythonPackage {
-          pname = "qudi-iqo-modules";
-          version = lib.strings.removeSuffix "\n" (builtins.readFile ./VERSION);
-          pyproject = true;
-          src = ./.;
+        mkQudiIqoModules = {
+          pkgs,
+          python,
+        }:
+          python.pkgs.buildPythonPackage {
+            pname = "qudi-iqo-modules";
+            version = pkgs.lib.strings.removeSuffix "\n" (builtins.readFile ./VERSION);
+            pyproject = true;
+            src = ./.;
 
-          build-system = with pyPkgs; [
-            setuptools
-            setuptools-scm
-            wheel
-          ];
+            build-system = with python.pkgs; [
+              setuptools
+              setuptools-scm
+              wheel
+            ];
 
-          dependencies = with pyPkgs; [
-            qudiCore
-            fysom
-            entrypoints
-            lmfit
-            lxml
-            matplotlib
-            nidaqmx
-            numpy
-            pyqtgraph
-            pyside6
-            pyvisa
-            scipy
-            zaber-motion
-          ];
-        };
+            dependencies = with python.pkgs; [
+              qudiCore
+              fysom
+              entrypoints
+              lmfit
+              lxml
+              matplotlib
+              nidaqmx
+              numpy
+              pyqtgraph
+              pyside6
+              pyvisa
+              scipy
+              zaber-motion
+            ];
+          };
 
+        qudiIqoModules = mkQudiIqoModules {inherit pkgs python;};
         qudiEnv = python.withPackages (_: [qudiIqoModules]);
 
         fmtPackage = pkgs.writeShellScriptBin "fmt" ''
@@ -175,6 +183,11 @@
         packages = {
           default = qudiIqoModules;
           qudi-iqo-modules = qudiIqoModules;
+        };
+
+        lib = {
+          pythonOverrides = pythonOverrides;
+          mkQudiIqoModules = mkQudiIqoModules;
         };
 
         apps = {

@@ -60,17 +60,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1779805480,
-        "narHash": "sha256-bctGpL4qyEg7bZuNr5P78rwArYc2YsOHBgkbUOh0bvk=",
+        "lastModified": 1779975994,
+        "narHash": "sha256-dKwEuFvCM/qRRYSdvU0zHAq4Q5GOowaeEjpnUeCuF1o=",
         "owner": "SparrowQuantum",
         "repo": "qudi-core-sparrow",
-        "rev": "1bcd6bf3476cf707e719a9947da276c76372f9d7",
+        "rev": "2ecb1ba541f4018574532e46af45fc1781e3aa00",
         "type": "github"
       },
       "original": {
         "owner": "SparrowQuantum",
         "repo": "qudi-core-sparrow",
-        "rev": "1bcd6bf3476cf707e719a9947da276c76372f9d7",
+        "rev": "2ecb1ba541f4018574532e46af45fc1781e3aa00",
         "type": "github"
       }
     },
