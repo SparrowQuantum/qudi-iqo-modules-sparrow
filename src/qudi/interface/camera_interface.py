@@ -34,33 +34,33 @@ class CameraInterface(Base):
 
     @abstractmethod
     def get_name(self) -> str:
-        """Retrieve an identifier of the camera that the GUI can print
+        """Retrieve an identifier of the camera.
 
-        @return string: name for the camera
+        :return: Name for the camera.
         """
         pass
 
     @abstractmethod
     def get_size(self) -> tuple[int, int]:
-        """Retrieve size of the image in pixel
+        """Retrieve size of the image in pixel.
 
-        @return tuple: Size (width, height)
+        :return: Size (width, height).
         """
         pass
 
     @abstractmethod
     def support_live_acquisition(self) -> bool:
-        """Return whether or not the camera can take care of live acquisition
+        """Return whether or not the camera can take care of live acquisition.
 
-        @return bool: True if supported, False if not
+        :return: True if supported, False if not.
         """
         pass
 
     @abstractmethod
     def start_live_acquisition(self) -> bool:
-        """Start a continuous acquisition
+        """Start a continuous acquisition.
 
-        @return bool: Success ?
+        :return: True if the acquisition was successfully started. False if not.
         """
         pass
 
@@ -68,15 +68,15 @@ class CameraInterface(Base):
     def start_single_acquisition(self) -> bool:
         """Start a single acquisition
 
-        @return bool: Success ?
+        :return: True if the acquisition was successfully started. False if not.
         """
         pass
 
     @abstractmethod
     def stop_acquisition(self) -> bool:
-        """Stop/abort live or single acquisition
+        """Stop/abort live or single acquisition.
 
-        @return bool: Success ?
+        :return: True if the acquisition was successfully stopped. False if not.
         """
         pass
 
@@ -84,9 +84,9 @@ class CameraInterface(Base):
     def get_acquired_data(self) -> NDArray:
         """Return an array of last acquired image.
 
-        @return numpy array: image data in format [[row],[row]...]
+        Each pixel might be a float, integer or sub pixels.
 
-        Each pixel might be a float, integer or sub pixels
+        :return: image data in format [[row],[row]...].
         """
         pass
 
@@ -94,43 +94,41 @@ class CameraInterface(Base):
     def set_exposure(self, exposure: float) -> float:
         """Set the exposure time in seconds
 
-        @param float exposure: desired new exposure time
-
-        @return float: setted new exposure time
+        :param exposure: Desired new exposure time.
+        :return: Setted new exposure time.
         """
         pass
 
     @abstractmethod
     def get_exposure(self) -> float:
-        """Get the exposure time in seconds
+        """Get the exposure time in seconds.
 
-        @return float exposure time
+        :return: Exposure time.
         """
         pass
 
     @abstractmethod
     def set_gain(self, gain: float) -> float:
-        """Set the gain
+        """Set the gain.
 
-        @param float gain: desired new gain
-
-        @return float: new exposure gain
+        :param gain: Desired new gain.
+        :return: New exposure gain.
         """
         pass
 
     @abstractmethod
     def get_gain(self) -> float:
-        """Get the gain
+        """Get the gain.
 
-        @return float: exposure gain
+        :return: Exposure gain.
         """
         pass
 
     @abstractmethod
     def get_ready_state(self) -> bool:
-        """Is the camera ready for an acquisition ?
+        """Whether or not the camera is ready for acquisition.
 
-        @return bool: ready ?
+        :return: True if ready, False if not.
         """
         pass
 
@@ -141,6 +139,6 @@ class CameraInterface(Base):
 
         This signal is optional and can be None.
 
-        @return Signal | None: signal or None
+        :return: signal or None.
         """
         pass
