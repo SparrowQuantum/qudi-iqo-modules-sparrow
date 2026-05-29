@@ -25,7 +25,7 @@ from __future__ import annotations
 from abc import abstractmethod
 
 from numpy.typing import NDArray
-from PySide2.QtCore import Signal
+from PySide6.QtCore import Signal
 from qudi.core.module import Base
 
 
