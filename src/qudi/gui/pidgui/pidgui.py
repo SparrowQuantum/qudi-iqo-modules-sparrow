@@ -237,6 +237,9 @@ class PIDGui(GuiBase):
             self._mw.control_value_Label.setText(f'<font color={palette.c3.name()}>{cv}</font>')
             self._mw.setpoint_value_Label.setText(f'<font color={palette.c2.name()}>{sp}</font>')
 
+            if not self._mw.setpointDoubleSpinBox.hasFocus():
+                self._mw.setpointDoubleSpinBox.setValue(self._pid_logic.get_setpoint())
+
             extra = self._pid_logic._controller.get_extra()
             if 'P' in extra:
                 self._mw.labelkP.setText('{0:,.6f}'.format(extra['P']))
