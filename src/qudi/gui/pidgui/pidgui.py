@@ -192,7 +192,6 @@ class PIDGui(GuiBase):
         self._mw.D_DoubleSpinBox.editingFinished.connect(self._kd_changed)
 
         self._mw.setpointPushButton.clicked.connect(self._setpoint_changed)
-        self._mw.setpointDoubleSpinBox.editingFinished.connect(self._setpoint_changed)
         self._mw.manualDoubleSpinBox.editingFinished.connect(self._manual_value_changed)
         self._mw.pidEnabledCheckBox.toggled.connect(self._pid_enabled_changed)
 
