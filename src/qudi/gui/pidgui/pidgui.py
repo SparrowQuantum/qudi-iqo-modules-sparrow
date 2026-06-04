@@ -192,6 +192,7 @@ class PIDGui(GuiBase):
         self._mw.D_DoubleSpinBox.editingFinished.connect(self._kd_changed)
 
         self._mw.setpointPushButton.clicked.connect(self._setpoint_changed)
+        self._mw.setpointDoubleSpinBox.editingFinished.connect(self._setpoint_changed)
         self._mw.manualDoubleSpinBox.editingFinished.connect(self._manual_value_changed)
         self._mw.pidEnabledCheckBox.toggled.connect(self._pid_enabled_changed)
 
@@ -330,8 +331,7 @@ class PIDGui(GuiBase):
         self._pid_logic.set_kd(self._mw.D_DoubleSpinBox.value())
 
     def _setpoint_changed(self):
-        if self._mw.pidEnabledCheckBox.checkState() == QtCore.Qt.CheckState.Checked:
-            self._pid_logic.set_setpoint(self._mw.setpointDoubleSpinBox.value())
+        self._pid_logic.set_setpoint(self._mw.setpointDoubleSpinBox.value())
 
     def _manual_value_changed(self):
         if self._mw.pidEnabledCheckBox.checkState() == QtCore.Qt.CheckState.Unchecked:
