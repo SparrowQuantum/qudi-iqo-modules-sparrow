@@ -189,12 +189,12 @@ class PIDGui(GuiBase):
         self._mw.reset_view_Action.triggered.connect(self._reset_clicked)
         self._mw.record_control_Action.triggered.connect(self._save_clicked)
 
-        self._mw.P_DoubleSpinBox.editingFinished.connect(self._kp_changed)
-        self._mw.I_DoubleSpinBox.editingFinished.connect(self._ki_changed)
-        self._mw.D_DoubleSpinBox.editingFinished.connect(self._kd_changed)
+        self._mw.P_DoubleSpinBox.lineEdit().returnPressed.connect(self._kp_changed)
+        self._mw.I_DoubleSpinBox.lineEdit().returnPressed.connect(self._ki_changed)
+        self._mw.D_DoubleSpinBox.lineEdit().returnPressed.connect(self._kd_changed)
 
         self._mw.setpointDoubleSpinBox.lineEdit().returnPressed.connect(self._setpoint_changed)
-        self._mw.manualDoubleSpinBox.editingFinished.connect(self._manual_value_changed)
+        self._mw.manualDoubleSpinBox.lineEdit().returnPressed.connect(self._manual_value_changed)
         self._mw.pidEnabledCheckBox.toggled.connect(self._pid_enabled_changed)
 
         # Connect the default view action
@@ -239,8 +239,6 @@ class PIDGui(GuiBase):
             self._mw.control_value_Label.setText(f'<font color={palette.c3.name()}>{cv}</font>')
             self._mw.setpoint_value_Label.setText(f'<font color={palette.c2.name()}>{sp}</font>')
 
-            if not self._mw.setpointDoubleSpinBox.hasFocus():
-                self._mw.setpointDoubleSpinBox.setValue(self._pid_logic.get_setpoint())
 
             extra = self._pid_logic._controller.get_extra()
             if 'P' in extra:
