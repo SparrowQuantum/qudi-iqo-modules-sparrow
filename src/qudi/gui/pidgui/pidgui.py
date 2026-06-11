@@ -126,7 +126,7 @@ class PIDGui(GuiBase):
 
         ## Create an empty plot curve to be filled later, set its pen
         self._curve1 = pg.PlotDataItem(pen=pg.mkPen(palette.c1),#, style=QtCore.Qt.DotLine),
-                                       symbol=None,
+                                       symbol=None
                                        #symbol='o',
                                        #symbolPen=palette.c1,
                                        #symbolBrush=palette.c1,
@@ -138,7 +138,7 @@ class PIDGui(GuiBase):
                                        )
 
         self._curve2 = pg.PlotDataItem(pen=pg.mkPen(palette.c3),#, style=QtCore.Qt.DotLine),
-                                       symbol=None,
+                                       symbol=None
                                        #symbol='o',
                                        #symbolPen=palette.c3,
                                        #symbolBrush=palette.c3,
@@ -214,13 +214,13 @@ class PIDGui(GuiBase):
         self._mw.raise_()
 
     def on_deactivate(self):
-        """Deactivate the module properly.
+        """ Deactivate the module properly.
         """
         # FIXME: !
         self._mw.close()
 
     def _update_data(self):
-        """The function that grabs the data and sends it to the plot.
+        """ The function that grabs the data and sends it to the plot.
         """
 
         if self._pid_logic.is_recording:
@@ -279,7 +279,7 @@ class PIDGui(GuiBase):
         self.plot2.linkedViewChanged(self.plot1.vb, self.plot2.XAxis)
 
     def _start_clicked(self):
-        """Handling the Start button to stop and restart the counter.
+        """ Handling the Start button to stop and restart the counter.
         """
         if self._pid_logic.is_recording:
             self._mw.start_control_Action.setText('Start')
@@ -289,13 +289,13 @@ class PIDGui(GuiBase):
             self.sigStart.emit()
 
     def _reset_clicked(self):
-        """Handling the reset view button to reset the plot.
+        """ Handling the reset view button to reset the plot.
         """
         self._pid_logic.reset_buffer()
         self._update_data()
 
     def _save_clicked(self):
-        """Handling the save button to save the data into a file.
+        """ Handling the save button to save the data into a file.
         """
         if self._pid_logic.get_saving_state():
             self._mw.record_counts_Action.setText('Start Saving Data')
@@ -305,7 +305,7 @@ class PIDGui(GuiBase):
             self._pid_logic.start_saving()
 
     def _restore_default_view(self):
-        """Restore the arrangement of DockWidgets to the default
+        """ Restore the arrangement of DockWidgets to the default
         """
         # Show any hidden dock widgets
         self._mw.pid_trace_DockWidget.show()
