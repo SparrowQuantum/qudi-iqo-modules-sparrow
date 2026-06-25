@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     qudi-core = {
-      url = "github:SparrowQuantum/qudi-core-sparrow/2ecb1ba541f4018574532e46af45fc1781e3aa00";
+      url = "github:SparrowQuantum/qudi-core-sparrow";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
