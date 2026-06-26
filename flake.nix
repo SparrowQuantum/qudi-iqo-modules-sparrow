@@ -62,7 +62,7 @@
             ];
           };
 
-          #  nidaqmx version override due to outdated nxpkgs version
+          #  nidaqmx version override due to outdated nixpkgs version
           nidaqmx = super.nidaqmx.overridePythonAttrs (old: rec {
             version = "1.5.0";
             src = pkgs.fetchFromGitHub {
@@ -79,7 +79,7 @@
               ];
           });
 
-          # lxml version override due to outdated nxpkgs version
+          # lxml version override due to outdated nixpkgs version
           lxml = super.lxml.overridePythonAttrs (_: rec {
             version = "6.1.1";
             src = pkgs.fetchFromGitHub {
@@ -94,7 +94,7 @@
             '';
           });
 
-          # pyvisa version override due to outdated nxpkgs version
+          # pyvisa version override due to outdated nixpkgs version
           pyvisa = super.pyvisa.overridePythonAttrs (_: rec {
             version = "1.16.2";
             src = pkgs.fetchFromGitHub {
@@ -142,7 +142,7 @@
         }:
           python.pkgs.buildPythonPackage {
             pname = "qudi-iqo-modules";
-            version = pkgs.lib.strings.removeSuffix "\n" (builtins.readFile ./VERSION);
+            version = lib.head (lib.strings.splitString "\n" (builtins.readFile ./VERSION));
             pyproject = true;
             src = ./.;
 

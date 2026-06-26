@@ -1,7 +1,7 @@
 _default:
     @just --list
 
-# Build qudi-core
+# Build qudi-iqo-modules
 build:
     @nix build
 
@@ -11,7 +11,7 @@ qudi:
 
 # Run qudi without GUI
 qudi-headless:
-    @nix run . -- -g 
+    @nix run . -- -g
 
 # Run a Jupyter notebook server for the given directory
 notebook DIR='.':
