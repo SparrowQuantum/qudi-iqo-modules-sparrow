@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     qudi-core = {
-      url = "github:SparrowQuantum/qudi-core-sparrow";
+      url = "github:SparrowQuantum/qudi-core-sparrow/b71db29044e18f81504fefd6e2822b7c1579e275";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -79,21 +79,6 @@
               ];
           });
 
-          # lxml version override due to outdated nixpkgs version
-          lxml = super.lxml.overridePythonAttrs (_: rec {
-            version = "6.1.1";
-            src = pkgs.fetchFromGitHub {
-              owner = "lxml";
-              repo = "lxml";
-              tag = "lxml-${version}";
-              hash = "sha256-SRJaegK4PxgK0rdILVp3J92VnjPmExiD2AuMLoGQIbA=";
-            };
-            postPatch = ''
-              substituteInPlace pyproject.toml \
-                --replace-fail 'Cython>=3.2.4' 'Cython'
-            '';
-          });
-
           # pyvisa version override due to outdated nixpkgs version
           pyvisa = super.pyvisa.overridePythonAttrs (_: rec {
             version = "1.16.2";
@@ -136,10 +121,7 @@
 
         qudiCore = qudiLib.mkQudiCore {inherit pkgs python;};
 
-        mkQudiIqoModules = {
-          pkgs,
-          python,
-        }:
+        mkQudiIqoModules = {python}:
           python.pkgs.buildPythonPackage {
             pname = "qudi-iqo-modules";
             version = lib.head (lib.strings.splitString "\n" (builtins.readFile ./VERSION));
@@ -169,7 +151,7 @@
             ];
           };
 
-        qudiIqoModules = mkQudiIqoModules {inherit pkgs python;};
+        qudiIqoModules = mkQudiIqoModules {inherit python;};
         qudiEnv = python.withPackages (_: [qudiIqoModules]);
 
         fmtPackage = pkgs.writeShellScriptBin "fmt" ''
