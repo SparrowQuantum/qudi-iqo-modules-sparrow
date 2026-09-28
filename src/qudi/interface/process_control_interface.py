@@ -24,13 +24,12 @@ __all__ = ['ProcessControlConstraints', 'ProcessControlInterface', 'ProcessSetpo
 
 from abc import abstractmethod
 from collections.abc import Iterable, Mapping
-from typing import Union
 
 import numpy as np
 from qudi.core.module import Base
 from qudi.util.helpers import in_range
 
-_Real = Union[int, float]
+_Real = int | float
 
 
 class ProcessControlConstraints:
@@ -44,20 +43,20 @@ class ProcessControlConstraints:
         limits: Mapping[str, tuple[_Real, _Real]] | None = None,
         dtypes: Mapping[str, type[int] | type[float]] | None = None,
     ) -> None:
-        """ """
+        """Initialize the process control constraints."""
         if units is None:
-            units = dict()
+            units = {}
         if limits is None:
-            limits = dict()
+            limits = {}
         if dtypes is None:
-            dtypes = dict()
+            dtypes = {}
         if setpoint_channels is None:
-            setpoint_channels = tuple()
+            setpoint_channels = ()
         if process_channels is None:
-            process_channels = tuple()
+            process_channels = ()
 
-        self._setpoint_channels = tuple() if setpoint_channels is None else tuple(setpoint_channels)
-        self._process_channels = tuple() if process_channels is None else tuple(process_channels)
+        self._setpoint_channels = () if setpoint_channels is None else tuple(setpoint_channels)
+        self._process_channels = () if process_channels is None else tuple(process_channels)
 
         all_channels = set(self._setpoint_channels)
         all_channels.update(self._process_channels)
