@@ -160,7 +160,7 @@ class _ProcessControlInterfaceBase(Base):
         @param active: The desired activity state for the channel.
         @raises ProcessControlCommunicationError: If the module is unable to set the activity state for the given channel.
         @raises ProcessControlInvalidChannelError: If the given channel is not valid.
-        @raises ProcessControlConstraintError: If the given value violates the constraints for the channel.
+        @raises TypeError: If the given value is not of the expected type (bool).
         """
 
     @abstractmethod
