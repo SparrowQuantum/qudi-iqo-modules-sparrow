@@ -74,3 +74,21 @@ class SpectrometerInterface(Base):
     def shutter_open(self, value):
         """Set the acquisition shutter state"""
         pass
+
+    @property
+    def background_correction(self) -> bool:
+        """Whether this hardware subtracts its own dark frame
+
+        Hardware holding a background (a server-side dark frame, say) corrects
+        at the source. Hardware holding none stays False and ignores writes, so
+        a caller may hand the setting over unconditionally and read back
+        whether it took effect, correcting itself only when it did not.
+
+        @return (bool): True when spectra are returned background-corrected
+        """
+        return False
+
+    @background_correction.setter
+    def background_correction(self, value: bool):
+        """Request background correction; ignored when unsupported"""
+        pass
