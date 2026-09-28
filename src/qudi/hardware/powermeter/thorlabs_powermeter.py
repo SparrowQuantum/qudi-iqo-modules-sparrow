@@ -96,8 +96,9 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         if status < 0:
             msg = create_string_buffer(1024)
             self._dll.TLPM_errorMessage(self._devSession, c_int(status), msg)
-            self.log.exception(c_char_p(msg.raw).value)
-            raise ProcessControlCommunicationError
+            msg_val = c_char_p(msg.raw).value
+            err_msg = msg_val.decode() if msg_val is not None else "Unknown error"
+            raise ProcessControlCommunicationError(err_msg)
 
     def on_activate(self):
         """Startup the module"""
