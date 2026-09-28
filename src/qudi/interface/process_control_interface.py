@@ -61,12 +61,24 @@ class ProcessControlConstraints:
         all_channels = set(self._setpoint_channels)
         all_channels.update(self._process_channels)
 
-        assert set(units).issubset(all_channels)
-        assert all(isinstance(unit, str) for unit in units.values())
-        assert set(limits).issubset(all_channels)
-        assert all(len(lim) == 2 for lim in limits.values())
-        assert set(dtypes).issubset(all_channels)
-        assert all(t in (int, float) for t in dtypes.values())
+        if not set(units).issubset(all_channels):
+            msg = "units contain channels not present in setpoint or process channels."
+            raise ValueError(msg)
+        if not all(isinstance(unit, str) for unit in units.values()):
+            msg = "all units must be strings."
+            raise TypeError(msg)
+        if not set(limits).issubset(all_channels):
+            msg = "limits contain channels not present in setpoint or process channels."
+            raise ValueError(msg)
+        if not all(len(lim) == 2 for lim in limits.values()):
+            msg = "all limits must be tuples of length 2."
+            raise ValueError(msg)
+        if not set(dtypes).issubset(all_channels):
+            msg = "dtypes contain channels not present in setpoint or process channels."
+            raise ValueError(msg)
+        if not all(t in (int, float) for t in dtypes.values()):
+            msg = "all dtypes must be int or float."
+            raise TypeError(msg)
 
         self._channel_units = {ch: units.get(ch, '') for ch in all_channels}
         self._channel_limits = {ch: limits.get(ch, (-np.inf, np.inf)) for ch in all_channels}
