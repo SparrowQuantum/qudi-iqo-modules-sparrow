@@ -20,7 +20,16 @@ You should have received a copy of the GNU Lesser General Public License along w
 If not, see <https://www.gnu.org/licenses/>.
 """
 
-__all__ = ['ProcessControlConstraints', 'ProcessControlInterface', 'ProcessSetpointInterface', 'ProcessValueInterface']
+__all__ = [
+    'ProcessControlChannelInactiveError',
+    'ProcessControlCommunicationError',
+    'ProcessControlConstraintError',
+    'ProcessControlConstraints',
+    'ProcessControlInterface',
+    'ProcessControlInvalidChannelError',
+    'ProcessSetpointInterface',
+    'ProcessValueInterface',
+]
 
 from abc import abstractmethod
 from collections.abc import Iterable, Mapping
@@ -30,6 +39,22 @@ from qudi.core.module import Base
 from qudi.util.helpers import in_range
 
 _Real = int | float
+
+
+class ProcessControlCommunicationError(IOError):
+    """Exception raised for errors in the communication with the process control device."""
+
+
+class ProcessControlChannelInactiveError(RuntimeError):
+    """Exception raised for errors related to inactive process control channels."""
+
+
+class ProcessControlInvalidChannelError(ValueError):
+    """Exception raised for errors related to invalid process control channels."""
+
+
+class ProcessControlConstraintError(ValueError):
+    """Exception raised for errors in the process control constraints."""
 
 
 class ProcessControlConstraints:
@@ -119,19 +144,34 @@ class _ProcessControlInterfaceBase(Base):
     @abstractmethod
     def constraints(self) -> ProcessControlConstraints:
         """Read-Only property holding the constraints for this hardware module.
+
         See class ProcessControlConstraints for more details.
+
+        @raises ProcessControlCommunicationError: If the module is unable to retrieve the constraints from the hardware.
         """
 
     @abstractmethod
     def set_activity_state(self, channel: str, active: bool) -> None:
         """Set activity state for given channel.
+
         State is bool type and refers to active (True) and inactive (False).
+
+        @param channel: The name of the channel for which to set the activity state.
+        @param active: The desired activity state for the channel.
+        @raises ProcessControlCommunicationError: If the module is unable to set the activity state for the given channel.
+        @raises ProcessControlInvalidChannelError: If the given channel is not valid.
+        @raises ProcessControlConstraintError: If the given value violates the constraints for the channel.
         """
 
     @abstractmethod
     def get_activity_state(self, channel: str) -> bool:
         """Get activity state for given channel.
+
         State is bool type and refers to active (True) and inactive (False).
+
+        @param channel: The name of the channel for which to get the activity state.
+        @raises ProcessControlCommunicationError: If the module is unable to get the activity state for the given channel.
+        @raises ProcessControlInvalidChannelError: If the given channel is not valid.
         """
 
     # Non-abstract default implementations below
@@ -139,14 +179,23 @@ class _ProcessControlInterfaceBase(Base):
     @property
     def activity_states(self) -> dict[str, bool]:
         """Current activity state (values) for each channel (keys).
+
         State is bool type and refers to active (True) and inactive (False).
+
+        @raises ProcessControlCommunicationError: If the module is unable to get the activity state for any of the channels.
         """
         return {ch: self.get_activity_state(ch) for ch in self.constraints.all_channels}
 
     @activity_states.setter
     def activity_states(self, values: Mapping[str, bool]) -> None:
         """Set activity state (values) for multiple channels (keys).
+
         State is bool type and refers to active (True) and inactive (False).
+
+        @param values: A mapping of channel names (keys) to the desired activity states (values).
+        @raises ProcessControlCommunicationError: If the module is unable to set the activity state for any of the channels.
+        @raises ProcessControlInvalidChannelError: If any of the given channels are not valid.
+        @raises ProcessControlConstraintError: If any of the given values violate the constraints for the respective channels.
         """
         for ch, enabled in values.items():
             self.set_activity_state(ch, enabled)
@@ -162,22 +211,48 @@ class ProcessSetpointInterface(_ProcessControlInterfaceBase):
 
     @abstractmethod
     def set_setpoint(self, channel: str, value: _Real) -> None:
-        """Set new setpoint for a single channel"""
+        """Set new setpoint for a single channel.
+
+        @param channel: The name of the channel for which to set the setpoint.
+        @param value: The desired setpoint value for the channel.
+        @raises ProcessControlCommunicationError: If the module is unable to set the setpoint for the given channel.
+        @raises ProcessControlChannelInactiveError: If the setpoint cannot be set because the channel is inactive.
+        @raises ProcessControlInvalidChannelError: If the given channel is not valid.
+        @raises ProcessControlConstraintError: If the given value violates the constraints for the channel.
+        """
 
     @abstractmethod
     def get_setpoint(self, channel: str) -> _Real:
-        """Get current setpoint for a single channel"""
+        """Get current setpoint for a single channel.
+
+        @param channel: The name of the channel for which to get the setpoint.
+        @raises ProcessControlCommunicationError: If the module is unable to get the setpoint for the given channel.
+        @raises ProcessControlChannelInactiveError: If the setpoint cannot be retrieved because the channel is inactive.
+        @raises ProcessControlInvalidChannelError: If the given channel is not valid.
+        """
 
     # Non-abstract default implementations below
 
     @property
     def setpoints(self) -> dict[str, _Real]:
-        """The current setpoints (values) for all channels (keys)"""
+        """The current setpoints (values) for all channels (keys).
+
+        @raises ProcessControlCommunicationError: If the module is unable to get the setpoints for any of the channels.
+        @raises ProcessControlChannelInactiveError: If any of the setpoints cannot be retrieved because the respective channels are inactive.
+        @raises ProcessControlConstraintError: If any of the setpoints violate the constraints for the respective channels.
+        """
         return {ch: self.get_setpoint(ch) for ch in self.constraints.setpoint_channels}
 
     @setpoints.setter
     def setpoints(self, values: Mapping[str, _Real]) -> None:
-        """Set the setpoints (values) for all channels (keys) at once"""
+        """Set the setpoints (values) for all channels (keys) at once.
+
+        @param values: A mapping of channel names (keys) to the desired setpoints (values).
+        @raises ProcessControlCommunicationError: If the module is unable to set the setpoints for any of the channels.
+        @raises ProcessControlChannelInactiveError: If any of the setpoints cannot be set because the respective channels are inactive.
+        @raises ProcessControlInvalidChannelError: If any of the given channels are not valid.
+        @raises ProcessControlConstraintError: If any of the given values violate the constraints for the respective channels.
+        """
         for ch, setpoint in values.items():
             self.set_setpoint(ch, setpoint)
 
@@ -192,7 +267,13 @@ class ProcessValueInterface(_ProcessControlInterfaceBase):
 
     @abstractmethod
     def get_process_value(self, channel: str) -> _Real:
-        """Get current process value for a single channel"""
+        """Get current process value for a single channel.
+
+        @param channel: The name of the channel for which to get the process value.
+        @raises ProcessControlCommunicationError: If the module is unable to get the process value for the given channel.
+        @raises ProcessControlChannelInactiveError: If the process value cannot be retrieved because the channel is inactive.
+        @raises ProcessControlInvalidChannelError: If the given channel is not valid.
+        """
 
     # Non-abstract default implementations below
 
@@ -200,6 +281,9 @@ class ProcessValueInterface(_ProcessControlInterfaceBase):
     def process_values(self) -> dict[str, _Real]:
         """Read-Only property returning a snapshot of current process values (values) for all
         channels (keys).
+
+        @raises ProcessControlCommunicationError: If the module is unable to get the process value for any of the channels.
+        @raises ProcessControlChannelInactiveError: If any of the process values cannot be retrieved because the respective channels are inactive.
         """
         return {ch: self.get_process_value(ch) for ch in self.constraints.process_channels}
 
