@@ -49,8 +49,11 @@ from qudi.interface.powermeter_interface import (
     PowerLimitMode,
 )
 from qudi.interface.process_control_interface import (
+    ProcessControlChannelInactiveError,
+    ProcessControlCommunicationError,
     ProcessValueInterface,
     ProcessControlConstraints,
+    ProcessControlInvalidChannelError,
 )
 
 # constants
@@ -94,7 +97,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
             msg = create_string_buffer(1024)
             self._dll.TLPM_errorMessage(self._devSession, c_int(status), msg)
             self.log.exception(c_char_p(msg.raw).value)
-            raise ValueError
+            raise ProcessControlCommunicationError
 
     def on_activate(self):
         """Startup the module"""
@@ -223,7 +226,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
     def set_activity_state(self, channel, active):
         """Set activity state. State is bool type and refers to active (True) and inactive (False)."""
         if channel != self._channel_name:
-            raise AssertionError(
+            raise ProcessControlInvalidChannelError(
                 f"Invalid channel name. Only valid channel is: {self._channel_name}"
             )
         if active != self._is_active:
@@ -238,7 +241,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         State is bool type and refers to active (True) and inactive (False).
         """
         if channel != self._channel_name:
-            raise AssertionError(
+            raise ProcessControlInvalidChannelError(
                 f"Invalid channel name. Only valid channel is: {self._channel_name}"
             )
         return self._is_active
@@ -257,7 +260,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         """
         for ch, enabled in values.items():
             if ch != self._channel_name:
-                raise AssertionError(
+                raise ProcessControlInvalidChannelError(
                     f"Invalid channel name. Only valid channel is: {self._channel_name}"
                 )
             self.set_activity_state(ch, enabled)
@@ -265,11 +268,11 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
     def get_process_value(self, channel):
         """Return a measured value"""
         if channel != self._channel_name:
-            raise AssertionError(
+            raise ProcessControlInvalidChannelError(
                 f"Invalid channel name. Only valid channel is: {self._channel_name}"
             )
         if not self.get_activity_state(self._channel_name):
-            raise AssertionError(
+            raise ProcessControlChannelInactiveError(
                 "Channel is not active. Activate first before getting process value."
             )
         return self._get_power()
@@ -439,7 +442,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
 
     def _check_enabled(self):
         if not self.get_enabled():
-            raise AssertionError(
+            raise ProcessControlChannelInactiveError(
                 "Power meter is not active. Activate by calling 'set_enabled(True)'"
             )
 

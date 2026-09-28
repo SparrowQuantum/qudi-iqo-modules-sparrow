@@ -30,8 +30,14 @@ from qudi.core.configoption import ConfigOption
 from qudi.core.statusvariable import StatusVar
 from qudi.util.helpers import natural_sort, in_range
 
-from qudi.interface.process_control_interface import ProcessControlConstraints
-from qudi.interface.process_control_interface import ProcessSetpointInterface
+from qudi.interface.process_control_interface import (
+    ProcessControlChannelInactiveError,
+    ProcessControlCommunicationError,
+    ProcessControlConstraintError,
+    ProcessControlConstraints,
+    ProcessControlInvalidChannelError,
+    ProcessSetpointInterface,
+)
 from qudi.interface.mixins.process_control_switch import ProcessControlSwitchMixin
 from qudi.hardware.ni_x_series.helpers import sanitize_device_name, normalize_channel_name
 from qudi.hardware.ni_x_series.helpers import ao_channel_names, ao_voltage_range
@@ -161,11 +167,7 @@ class NIXSeriesAnalogOutput(ProcessControlSwitchMixin, ProcessSetpointInterface)
         except Exception as err:
             raise TypeError('Unable to convert activity state to bool') from err
         with self._thread_lock:
-            try:
-                current_state = self._get_activity_state(channel)
-            except KeyError as err:
-                raise ValueError(f'Invalid channel specifier "{channel}". Valid channels are:\n'
-                                 f'{self.constraints.all_channels}') from err
+            current_state = self._get_activity_state(channel)
             if active != current_state:
                 try:
                     if active:
@@ -185,8 +187,10 @@ class NIXSeriesAnalogOutput(ProcessControlSwitchMixin, ProcessSetpointInterface)
 
     def _get_activity_state(self, channel: str) -> bool:
         if channel not in self.constraints.all_channels:
-            raise ValueError(f'Invalid channel specifier "{channel}". Valid channels are:\n'
-                             f'{self.constraints.all_channels}')
+            raise ProcessControlInvalidChannelError(
+                f'Invalid channel specifier "{channel}". Valid channels are:\n'
+                f'{self.constraints.all_channels}'
+            )
         return channel in self._ao_task_handles
 
     def _update_module_state(self) -> None:
@@ -201,10 +205,14 @@ class NIXSeriesAnalogOutput(ProcessControlSwitchMixin, ProcessSetpointInterface)
         value = float(value)
         with self._thread_lock:
             if not self._get_activity_state(channel):
-                raise RuntimeError(f'Please activate channel "{channel}" before setting setpoint')
+                raise ProcessControlChannelInactiveError(
+                    f'Please activate channel "{channel}" before setting setpoint'
+                )
             if not self.constraints.channel_value_in_range(channel, value)[0]:
-                raise ValueError(f'Setpoint {value} for channel "{channel}" out of allowed '
-                                 f'value bounds {self.constraints.channel_limits[channel]}')
+                raise ProcessControlConstraintError(
+                    f'Setpoint {value} for channel "{channel}" out of allowed value bounds '
+                    f'{self.constraints.channel_limits[channel]}'
+                )
             self._write_ao_value(channel, value)
             self._setpoints[channel] = value
 
@@ -212,7 +220,9 @@ class NIXSeriesAnalogOutput(ProcessControlSwitchMixin, ProcessSetpointInterface)
         """ Get current setpoint for a single channel """
         with self._thread_lock:
             if not self._get_activity_state(channel):
-                raise RuntimeError(f'Please activate channel "{channel}" before getting setpoint')
+                raise ProcessControlChannelInactiveError(
+                    f'Please activate channel "{channel}" before getting setpoint'
+                )
             return self._setpoints[channel]
 
     def _terminate_ao_task(self, channel: str) -> None:
@@ -231,11 +241,11 @@ class NIXSeriesAnalogOutput(ProcessControlSwitchMixin, ProcessSetpointInterface)
 
     def _create_ao_task(self, channel: str) -> None:
         if channel in self._ao_task_handles:
-            raise ValueError(f'AO task with name "{channel}" already present.')
+            raise ProcessControlCommunicationError(f'AO task with name "{channel}" already present.')
         try:
             ao_task = ni.Task(channel)
         except ni.DaqError as err:
-            raise RuntimeError(f'Unable to create NI task "{channel}"') from err
+            raise ProcessControlCommunicationError(f'Unable to create NI task "{channel}"') from err
         try:
             ao_phys_ch = f'/{self._device_name}/{self._device_channel_mapping[channel]}'
             min_val, max_val = self.constraints.channel_limits[channel]
@@ -247,11 +257,18 @@ class NIXSeriesAnalogOutput(ProcessControlSwitchMixin, ProcessSetpointInterface)
                 ao_task.close()
             except ni.DaqError:
                 pass
-            raise RuntimeError('Error while configuring NI analog out task') from err
+            raise ProcessControlCommunicationError(
+                'Error while configuring NI analog out task'
+            ) from err
         self._ao_task_handles[channel] = ao_task
 
     def _write_ao_value(self, channel: str, value: float) -> None:
-        self._ao_task_handles[channel].write(value)
+        try:
+            self._ao_task_handles[channel].write(value)
+        except ni.DaqError as err:
+            raise ProcessControlCommunicationError(
+                f'Unable to write analog output value for channel "{channel}"'
+            ) from err
 
     def _sanitize_setpoint_status(self) -> None:
         # Remove obsolete channels and out-of-bounds values

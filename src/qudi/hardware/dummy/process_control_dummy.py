@@ -27,8 +27,13 @@ from typing import Union
 
 from qudi.util.mutex import Mutex
 from qudi.core.configoption import ConfigOption
-from qudi.interface.process_control_interface import ProcessControlConstraints
-from qudi.interface.process_control_interface import ProcessControlInterface
+from qudi.interface.process_control_interface import (
+    ProcessControlChannelInactiveError,
+    ProcessControlConstraintError,
+    ProcessControlConstraints,
+    ProcessControlInterface,
+    ProcessControlInvalidChannelError,
+)
 from qudi.interface.mixins.process_control_switch import ProcessControlSwitchMixin
 
 
@@ -151,11 +156,7 @@ class ProcessControlDummy(ProcessControlSwitchMixin, ProcessControlInterface):
         except Exception as err:
             raise TypeError('Unable to convert activity state to bool') from err
         with self._thread_lock:
-            try:
-                current_state = self._get_activity_state(channel)
-            except KeyError as err:
-                raise ValueError(f'Invalid channel specifier "{channel}". Valid channels are:\n'
-                                 f'{self.constraints.all_channels}') from err
+            current_state = self._get_activity_state(channel)
             if active != current_state:
                 time.sleep(0.5)
                 self._activity_states[channel] = active
@@ -179,17 +180,24 @@ class ProcessControlDummy(ProcessControlSwitchMixin, ProcessControlInterface):
         try:
             return self._activity_states[channel]
         except KeyError as err:
-            raise ValueError(f'Invalid channel specifier "{channel}". Valid channels are:\n'
-                             f'{self.constraints.all_channels}') from err
+            raise ProcessControlInvalidChannelError(
+                f'Invalid channel specifier "{channel}". Valid channels are:\n'
+                f'{self.constraints.all_channels}'
+            ) from err
 
     def get_process_value(self, channel: str) -> Union[int, float]:
         """ Get current process value for a single channel """
         with self._thread_lock:
-            try:
-                min_val, max_val = self.constraints.channel_limits[channel]
-            except KeyError as err:
-                raise ValueError(f'Invalid process channel specifier "{channel}". Valid process '
-                                 f'channels are:\n{self.constraints.process_channels}') from err
+            if channel not in self.constraints.process_channels:
+                raise ProcessControlInvalidChannelError(
+                    f'Invalid process channel specifier "{channel}". Valid process channels are:\n'
+                    f'{self.constraints.process_channels}'
+                )
+            if not self._get_activity_state(channel):
+                raise ProcessControlChannelInactiveError(
+                    f'Process channel "{channel}" is inactive.'
+                )
+            min_val, max_val = self.constraints.channel_limits[channel]
 
             # check if a dependency of process value should be simulated
             if channel == self._linear_dependency['process_value_channel']:
@@ -214,23 +222,35 @@ class ProcessControlDummy(ProcessControlSwitchMixin, ProcessControlInterface):
     def set_setpoint(self, channel: str, value: Union[int, float]) -> None:
         """ Set new setpoint for a single channel """
         with self._thread_lock:
-            try:
-                if not self.constraints.channel_value_in_range(channel, value)[0]:
-                    raise ValueError(f'Setpoint {value} for channel "{channel}" out of allowed '
-                                     f'value bounds {self.constraints.channel_limits[channel]}')
-                self._setpoints[channel] = self.constraints.channel_dtypes[channel](value)
-            except KeyError as err:
-                raise ValueError(f'Invalid setpoint channel specifier "{channel}". Valid setpoint '
-                                 f'channels are:\n{tuple(self._setpoints)}') from err
+            if channel not in self.constraints.setpoint_channels:
+                raise ProcessControlInvalidChannelError(
+                    f'Invalid setpoint channel specifier "{channel}". Valid setpoint channels are:\n'
+                    f'{self.constraints.setpoint_channels}'
+                )
+            if not self._get_activity_state(channel):
+                raise ProcessControlChannelInactiveError(
+                    f'Setpoint channel "{channel}" is inactive.'
+                )
+            if not self.constraints.channel_value_in_range(channel, value)[0]:
+                raise ProcessControlConstraintError(
+                    f'Setpoint {value} for channel "{channel}" out of allowed value bounds '
+                    f'{self.constraints.channel_limits[channel]}'
+                )
+            self._setpoints[channel] = self.constraints.channel_dtypes[channel](value)
 
     def get_setpoint(self, channel: str) -> Union[int, float]:
         """ Get current setpoint for a single channel """
         with self._thread_lock:
-            try:
-                return self._setpoints[channel]
-            except KeyError as err:
-                raise ValueError(f'Invalid setpoint channel specifier "{channel}". Valid setpoint '
-                                 f'channels are:\n{tuple(self._setpoints)}') from err
+            if channel not in self.constraints.setpoint_channels:
+                raise ProcessControlInvalidChannelError(
+                    f'Invalid setpoint channel specifier "{channel}". Valid setpoint channels are:\n'
+                    f'{self.constraints.setpoint_channels}'
+                )
+            if not self._get_activity_state(channel):
+                raise ProcessControlChannelInactiveError(
+                    f'Setpoint channel "{channel}" is inactive.'
+                )
+            return self._setpoints[channel]
 
 
 class ProcessSetpointDummy(ProcessControlDummy):
