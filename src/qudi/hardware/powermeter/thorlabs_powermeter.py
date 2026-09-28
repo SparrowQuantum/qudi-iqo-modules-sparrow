@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 """
 Hardware module for using a Thorlabs power meter as a process value device.
@@ -33,27 +32,28 @@ from ctypes import (
     byref,
     c_bool,
     c_char_p,
-    cdll,
     c_double,
     c_int,
     c_int16,
     c_long,
-    create_string_buffer,
     c_uint32,
+    cdll,
+    create_string_buffer,
 )
 
 from qudi.core.configoption import ConfigOption
+
 from qudi.interface.powermeter_interface import (
-    PowerMeterInterface,
-    PowerMeterConstraints,
     PowerLimitMode,
+    PowerMeterConstraints,
+    PowerMeterInterface,
 )
 from qudi.interface.process_control_interface import (
     ProcessControlChannelInactiveError,
     ProcessControlCommunicationError,
-    ProcessValueInterface,
     ProcessControlConstraints,
     ProcessControlInvalidChannelError,
+    ProcessValueInterface,
 )
 
 # constants
@@ -126,7 +126,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         available_power_meters = []
         resource_name = create_string_buffer(1024)
 
-        for i in range(0, device_count.value):
+        for i in range(device_count.value):
             result = self._dll.TLPM_getRsrcName(
                 self._devSession, c_int(i), resource_name
             )
@@ -460,7 +460,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
         bandwidth = bandwidth.lower()
 
         value_dict = {"high": 0, "low": 1}
-        if bandwidth not in value_dict.keys():
+        if bandwidth not in value_dict:
             raise ValueError("'bandwidth' should be set to 'high', or 'low'.")
 
         input_filter_state = value_dict[bandwidth]
