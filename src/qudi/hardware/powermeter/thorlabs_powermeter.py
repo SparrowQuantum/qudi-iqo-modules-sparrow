@@ -117,7 +117,7 @@ class ThorlabsPowermeter(ProcessValueInterface, PowerMeterInterface):
                 first = available_power_meters[0]
             except IndexError as e:
                 msg = "No powermeter available on system."
-                raise ValueError from e
+                raise ValueError(msg) from e
             else:
                 self.log.info(f"Using first available powermeter with address {first}.")
                 self._device_address = first
