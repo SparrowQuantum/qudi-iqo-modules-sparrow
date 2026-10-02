@@ -76,19 +76,34 @@ class SpectrometerInterface(Base):
         pass
 
     @property
+    @abstractmethod
     def background_correction(self) -> bool:
         """Whether this hardware subtracts its own dark frame
 
         Hardware holding a background (a server-side dark frame, say) corrects
-        at the source. Hardware holding none stays False and ignores writes, so
-        a caller may hand the setting over unconditionally and read back
-        whether it took effect, correcting itself only when it did not.
+        at the source. Hardware holding none must return False and ignore
+        writes, so a caller may hand the setting over unconditionally and read
+        back whether it took effect, correcting itself only when it did not.
 
         @return (bool): True when spectra are returned background-corrected
         """
-        return False
+        pass
 
     @background_correction.setter
+    @abstractmethod
     def background_correction(self, value: bool):
         """Request background correction; ignored when unsupported"""
+        pass
+
+    @abstractmethod
+    def acquire_background(self) -> bool:
+        """Record a dark frame held and subtracted by the hardware
+
+        Pairs with background_correction: hardware that can record its own
+        background (closing its shutter, say) does so here and applies it to
+        later spectra. Hardware that cannot must return False without
+        acquiring, leaving the caller to record and subtract a background.
+
+        @return (bool): True when the hardware now holds a background
+        """
         pass
