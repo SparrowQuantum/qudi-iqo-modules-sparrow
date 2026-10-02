@@ -89,3 +89,18 @@ class OceanOptics(SpectrometerInterface):
         assert isinstance(value, (float, int)), f'exposure_time needs to be a float in seconds, but was {value}'
         self._integration_time = float(value)
         self._spectrometer.integration_time_micros(int(self._integration_time * 1e6))
+
+    @property
+    def background_correction(self):
+        """ Hardware background correction. Not supported.
+        """
+        return False
+
+    @background_correction.setter
+    def background_correction(self, value):
+        pass
+
+    def acquire_background(self):
+        """ Hardware background acquisition. Not supported.
+        """
+        return False

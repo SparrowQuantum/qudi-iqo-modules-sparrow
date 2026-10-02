@@ -116,6 +116,19 @@ class WinSpec32(SpectrometerInterface):
         self._status = experiment_instance.SetParam(WinSpecLib.EXP_EXPOSURETIME, value)
         self.check_status(f'exposure_time setting to {value}')
 
+    @property
+    def background_correction(self):
+        """ Hardware background correction. Not supported. """
+        return False
+
+    @background_correction.setter
+    def background_correction(self, value):
+        pass
+
+    def acquire_background(self):
+        """ Hardware background acquisition. Not supported. """
+        return False
+
     def record_spectrum(self):
         """ Record spectrum from WinSpec32 software.
 
