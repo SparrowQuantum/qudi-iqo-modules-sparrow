@@ -261,6 +261,17 @@ class Lightfield(SpectrometerInterface):
             self.shutter = str(ShutterTimingMode.AlwaysClosed.name)
 
     @property
+    def background_correction(self) -> bool:
+        return False
+
+    @background_correction.setter
+    def background_correction(self, value: bool):
+        pass
+
+    def acquire_background(self) -> bool:
+        return False
+
+    @property
     def pixels_in_spectrum(self):
         """Length is the number of pixels in the spectrum."""
         return self.exp.SystemColumnCalibration.Length

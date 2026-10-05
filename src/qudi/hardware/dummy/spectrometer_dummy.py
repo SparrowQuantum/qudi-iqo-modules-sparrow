@@ -108,3 +108,16 @@ class SpectrometerDummy(SpectrometerInterface):
     def shutter_open(self, value):
         """Set shutter status."""
         self._shutter_open = bool(value)
+
+    @property
+    def background_correction(self):
+        """Hardware background correction. Not supported."""
+        return False
+
+    @background_correction.setter
+    def background_correction(self, value):
+        pass
+
+    def acquire_background(self):
+        """Hardware background acquisition. Not supported."""
+        return False

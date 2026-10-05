@@ -3,6 +3,7 @@
 ## Pre-Release
 
 ### Breaking Changes
+- Added abstract `background_correction` property and `acquire_background` method to `SpectrometerInterface`, so hardware holding its own dark frame can record and subtract it at the source. Implementations without one return `False` from both
 
 ### Bugfixes
 - Fix `installtion.py` for arbitrary Python versions
