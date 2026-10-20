@@ -36,7 +36,7 @@ import comtypes.gen.WINX32Lib as WinSpecLib
 
 
 class WinSpec32(SpectrometerInterface):
-    """ Hardware module for reading spectra from the WinSpec32 spectrometer software.
+    """Hardware module for reading spectra from the WinSpec32 spectrometer software.
 
     Example config for copy-paste:
 
@@ -59,13 +59,11 @@ class WinSpec32(SpectrometerInterface):
         self.query_time = 0.01
 
     def on_activate(self):
-        """ Activate module.
-        """
+        """Activate module."""
         w32c.pythoncom.CoInitialize()
 
     def on_deactivate(self):
-        """ Deactivate module.
-        """
+        """Deactivate module."""
         pass
 
     def check_status(self, method='unknown'):
@@ -117,8 +115,24 @@ class WinSpec32(SpectrometerInterface):
         self.check_status(f'exposure_time setting to {value}')
 
     @property
+    def shutter_open(self) -> bool:
+        """Report the shutter state, which WinSpec32 owns.
+
+        :return: Always True, as this module never closes it.
+        """
+        return True
+
+    @shutter_open.setter
+    def shutter_open(self, value):
+        """Ignore the request, as WinSpec32 owns the shutter.
+
+        :param value: Ignored.
+        """
+        pass
+
+    @property
     def background_correction(self):
-        """ Hardware background correction. Not supported. """
+        """Hardware background correction. Not supported."""
         return False
 
     @background_correction.setter
@@ -126,13 +140,36 @@ class WinSpec32(SpectrometerInterface):
         pass
 
     def acquire_background(self):
-        """ Hardware background acquisition. Not supported. """
+        """Hardware background acquisition. Not supported."""
         return False
 
-    def record_spectrum(self):
-        """ Record spectrum from WinSpec32 software.
+    def stop_acquisition(self):
+        """Refuse cancellation, which is driven from WinSpec32.
 
-            @return []: spectrum data
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError('acquisitions are stopped in WinSpec32')
+
+    def get_wavelength(self) -> float:
+        """Refuse a centre wavelength read, as WinSpec32 owns the grating.
+
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError('WinSpec32 owns the grating position')
+
+    def set_wavelength(self, value: float):
+        """Refuse a centre wavelength move, as WinSpec32 owns the grating.
+
+        :param value: Ignored.
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError('WinSpec32 owns the grating position')
+
+    def record_spectrum(self):
+        """Record a spectrum from the WinSpec32 software.
+
+        :return: (2, N) array holding the wavelengths in metres and their
+            intensities, or None when the acquisition could not be started.
         """
         w32c.pythoncom.CoInitialize()
         # get some data structures from COM that we need later
@@ -184,10 +221,10 @@ class WinSpec32(SpectrometerInterface):
             return None
 
     def save_spectrum(self, path, postfix=''):
-        """ Save spectrum from WinSpec32 software.
+        """Save a spectrum from the WinSpec32 software.
 
-            @param str path: path to save origial spectrum
-            @param str postfix: file posfix
+        :param path: Path to save the original spectrum to.
+        :param postfix: Suffix appended to the file name.
         """
         w32c.pythoncom.CoInitialize()
         current_spectrum = w32c.Dispatch("WinX32.DocFile")

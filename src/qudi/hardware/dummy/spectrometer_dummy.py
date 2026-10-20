@@ -43,6 +43,8 @@ class SpectrometerDummy(SpectrometerInterface):
         super().__init__(*args, **kwargs)
         self._exposure = 0.5
         self._shutter_open = True
+        self._centre_wavelength = 740e-9
+        self._stop_requested = False
 
     def on_activate(self):
         """Activate module."""
@@ -55,16 +57,22 @@ class SpectrometerDummy(SpectrometerInterface):
     def record_spectrum(self):
         """Record a dummy spectrum.
 
-        @return ndarray: 1024-value ndarray containing wavelength and intensity of simulated spectrum
+        :return: (2, 1024) array holding the simulated wavelengths in metres
+            and their intensities.
         """
         length = 1024
 
+        # The window follows the centre wavelength, keeping the emitter line
+        # at the same offset from it as in the original fixed 730-750 nm span
+        centre = self._centre_wavelength * 1e9
         data = np.empty((2, length), dtype=np.double)
-        data[0] = np.arange(730, 750, 20 / length)
+        data[0] = np.arange(centre - 10, centre + 10, 20 / length)
         data[1] = np.random.uniform(0, 1000, length)
 
         if self._shutter_open:
-            data[1] = data[1] + 1500 * np.exp(-((data[0] - 736.5) ** 2) / 0.225**2)
+            data[1] = data[1] + 1500 * np.exp(
+                -((data[0] - (centre - 3.5)) ** 2) / 0.225**2
+            )
 
         # lorentz, params = self._fitLogic.make_multiplelorentzian_model(no_of_functions=4)
         # sigma = 0.05
@@ -86,7 +94,15 @@ class SpectrometerDummy(SpectrometerInterface):
 
         data[0] = data[0] * 1e-9  # return to logic in SI units (m)
 
-        time.sleep(self.exposure_time)
+        # Sleep in slices rather than one block, so stop_acquisition can end
+        # the exposure the way it ends one on hardware
+        self._stop_requested = False
+        remaining = self._exposure
+        while remaining > 0 and not self._stop_requested:
+            slice_s = min(0.05, remaining)
+            time.sleep(slice_s)
+            remaining -= slice_s
+
         return data
 
     @property
@@ -121,3 +137,21 @@ class SpectrometerDummy(SpectrometerInterface):
     def acquire_background(self):
         """Hardware background acquisition. Not supported."""
         return False
+
+    def stop_acquisition(self):
+        """End the simulated exposure early."""
+        self._stop_requested = True
+
+    def get_wavelength(self):
+        """Get the simulated centre wavelength.
+
+        :return: Centre wavelength in metres.
+        """
+        return self._centre_wavelength
+
+    def set_wavelength(self, value):
+        """Set the simulated centre wavelength.
+
+        :param value: Centre wavelength in metres.
+        """
+        self._centre_wavelength = float(value)

@@ -196,7 +196,7 @@ class Lightfield(SpectrometerInterface):
     def _start_acquire(self):
         """Acquire a frame/spectrum"""
         if self.is_running:
-            self.stop_aquisition()
+            self.stop_acquisition()
             time.sleep(0.2)
 
         if self.module_state() == "locked":
@@ -321,11 +321,26 @@ class Lightfield(SpectrometerInterface):
         ]
         return np.asarray(wl_list)
 
+    def get_wavelength(self) -> float:
+        """Refuse a centre wavelength read, as LightField owns the grating.
+
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError("LightField owns the grating position")
+
+    def set_wavelength(self, value: float):
+        """Refuse a centre wavelength move, as LightField owns the grating.
+
+        :param value: Ignored.
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError("LightField owns the grating position")
+
     @property
     def is_running(self):
         return self.exp.IsRunning
 
-    def stop_aquisition(self):
+    def stop_acquisition(self):
         if self.is_running:
             self.exp.Stop()
 

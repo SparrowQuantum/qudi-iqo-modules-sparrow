@@ -31,7 +31,7 @@ import seabreeze.spectrometers as sb
 
 
 class OceanOptics(SpectrometerInterface):
-    """ Hardware module for reading spectra from the Ocean Optics spectrometer software.
+    """Hardware module for reading spectra from the Ocean Optics spectrometer software.
 
     Example config for copy-paste:
 
@@ -49,8 +49,7 @@ class OceanOptics(SpectrometerInterface):
         self._spectrometer = None
 
     def on_activate(self):
-        """ Activate module.
-        """
+        """Activate module."""
         self.log.info(f'available spectrometers: {sb.list_devices()}')
         self._spectrometer = sb.Spectrometer.from_serial_number(self._serial)
         self.log.info(''.format(self._spectrometer.model, self._spectrometer.serial_number))
@@ -58,14 +57,14 @@ class OceanOptics(SpectrometerInterface):
         self.log.info(f'Exposure set to {self._integration_time} seconds')
 
     def on_deactivate(self):
-        """ Deactivate module.
-        """
+        """Deactivate module."""
         self._spectrometer.close()
 
     def record_spectrum(self):
-        """ Record spectrum from Ocean Optics spectrometer.
+        """Record a spectrum from the Ocean Optics spectrometer.
 
-            @return []: spectrum data
+        :return: (2, N) array holding the wavelengths in metres and their
+            intensities.
         """
         wavelengths = self._spectrometer.wavelengths()
         specdata = np.empty((2, len(wavelengths)), dtype=np.double)
@@ -75,25 +74,41 @@ class OceanOptics(SpectrometerInterface):
 
     @property
     def exposure_time(self):
-        """ Get exposure.
-            @return float: exposure time
-            Not implemented.
+        """Get the integration time.
+
+        :return: Exposure time in seconds.
         """
         return self._integration_time
 
     @exposure_time.setter
     def exposure_time(self, value):
-        """ Set exposure.
-            @param float value: exposure time in seconds
+        """Set the integration time.
+
+        :param value: Exposure time in seconds.
         """
         assert isinstance(value, (float, int)), f'exposure_time needs to be a float in seconds, but was {value}'
         self._integration_time = float(value)
         self._spectrometer.integration_time_micros(int(self._integration_time * 1e6))
 
     @property
-    def background_correction(self):
-        """ Hardware background correction. Not supported.
+    def shutter_open(self) -> bool:
+        """Report the shutter state, which this device has no shutter for.
+
+        :return: Always True, as light always reaches the detector.
         """
+        return True
+
+    @shutter_open.setter
+    def shutter_open(self, value):
+        """Ignore the request, as the device has no shutter.
+
+        :param value: Ignored.
+        """
+        pass
+
+    @property
+    def background_correction(self):
+        """Hardware background correction. Not supported."""
         return False
 
     @background_correction.setter
@@ -101,6 +116,29 @@ class OceanOptics(SpectrometerInterface):
         pass
 
     def acquire_background(self):
-        """ Hardware background acquisition. Not supported.
-        """
+        """Hardware background acquisition. Not supported."""
         return False
+
+    def stop_acquisition(self):
+        """Refuse cancellation, which this device cannot honour.
+
+        A read blocks for the integration time and cannot be interrupted.
+
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError('OceanOptics acquisitions cannot be stopped')
+
+    def get_wavelength(self) -> float:
+        """Refuse a centre wavelength read, as the dispersion is fixed.
+
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError('OceanOptics has no movable grating')
+
+    def set_wavelength(self, value: float):
+        """Refuse a centre wavelength move, as the dispersion is fixed.
+
+        :param value: Ignored.
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError('OceanOptics has no movable grating')
