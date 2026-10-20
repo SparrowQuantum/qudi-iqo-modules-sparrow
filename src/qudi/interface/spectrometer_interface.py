@@ -34,6 +34,34 @@ class SpectrometerInterface(Base):
     """
 
     @abstractmethod
+    def open_connection(self):
+        """Establish communication with the spectrometer.
+
+        Activation must not reach the device, so that a spectrometer that is
+        switched off, moved or still booting cannot stop the module, its logic
+        and its GUI from loading.
+
+        Calling this when the connection is already open does nothing, so a
+        caller may use it before every exchange without keeping track. Each
+        module also calls it itself before talking to the device, so a caller
+        that forgets still gets a clear communication error rather than a
+        half-prepared instrument.
+
+        :raises IOError: If the device cannot be reached.
+        """
+        pass
+
+    @abstractmethod
+    def close_connection(self):
+        """Release communication with the spectrometer.
+
+        A module has to be able to shut down even when the device cannot be
+        reached, so anything that goes wrong here is written to the log and
+        nothing is raised. The module is left ready to be opened again later.
+        """
+        pass
+
+    @abstractmethod
     def record_spectrum(self):
         """Launch an acquisition and wait for a response.
 
