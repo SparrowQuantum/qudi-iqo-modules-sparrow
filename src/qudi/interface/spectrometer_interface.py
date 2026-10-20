@@ -35,75 +35,110 @@ class SpectrometerInterface(Base):
 
     @abstractmethod
     def record_spectrum(self):
-        """Launch an acquisition a wait for a response
+        """Launch an acquisition and wait for a response.
 
-        @return (2, N) float array: The acquired array with the wavelength in meter in the first row and measured value
-                                    int the second
+        :return: (2, N) float array holding the wavelengths in metres in the
+            first row and the measured values in the second.
         """
         pass
 
     @property
     @abstractmethod
     def exposure_time(self):
-        """Get the acquisition exposure time
+        """Get the acquisition exposure time.
 
-        @return (float): Exposure time in second
+        :return: Exposure time in seconds.
         """
         pass
 
     @exposure_time.setter
     @abstractmethod
     def exposure_time(self, value):
-        """Set the acquisition exposure time
+        """Set the acquisition exposure time.
 
-        @param (float) value: Exposure time to set in second
+        :param value: Exposure time to set, in seconds.
         """
         pass
 
     @property
     @abstractmethod
     def shutter_open(self) -> bool:
-        """Get the acquisition shutter state
+        """Get the acquisition shutter state.
 
-        @return (bool): Shutter state
+        :return: True when the shutter is open.
         """
         pass
 
     @shutter_open.setter
     @abstractmethod
     def shutter_open(self, value):
-        """Set the acquisition shutter state"""
+        """Set the acquisition shutter state.
+
+        :param value: True to open the shutter.
+        """
         pass
 
     @property
     @abstractmethod
     def background_correction(self) -> bool:
-        """Whether this hardware subtracts its own dark frame
+        """Report whether this hardware subtracts its own dark frame.
 
         Hardware holding a background (a server-side dark frame, say) corrects
         at the source. Hardware holding none must return False and ignore
         writes, so a caller may hand the setting over unconditionally and read
         back whether it took effect, correcting itself only when it did not.
 
-        @return (bool): True when spectra are returned background-corrected
+        :return: True when spectra are returned background-corrected.
         """
         pass
 
     @background_correction.setter
     @abstractmethod
     def background_correction(self, value: bool):
-        """Request background correction; ignored when unsupported"""
+        """Request background correction, ignored when unsupported.
+
+        :param value: True to have the hardware subtract its own dark frame.
+        """
+        pass
+
+    @abstractmethod
+    def stop_acquisition(self):
+        """Ask an acquisition in progress to stop.
+
+        Returns once the request has been placed, which may be before the
+        acquisition itself ends. Does nothing when none is running.
+        """
+        pass
+
+    @abstractmethod
+    def get_wavelength(self) -> float:
+        """Get the centre wavelength of the spectrometer.
+
+        :return: Centre wavelength in metres.
+        :raises NotImplementedError: If the dispersion is fixed.
+        """
+        pass
+
+    @abstractmethod
+    def set_wavelength(self, value: float):
+        """Set the centre wavelength of the spectrometer.
+
+        Returns once the grating has reached the position.
+
+        :param value: Centre wavelength in metres.
+        :raises NotImplementedError: If the dispersion is fixed.
+        """
         pass
 
     @abstractmethod
     def acquire_background(self) -> bool:
-        """Record a dark frame held and subtracted by the hardware
+        """Record a dark frame held and subtracted by the hardware.
 
         Pairs with background_correction: hardware that can record its own
         background (closing its shutter, say) does so here and applies it to
         later spectra. Hardware that cannot must return False without
         acquiring, leaving the caller to record and subtract a background.
 
-        @return (bool): True when the hardware now holds a background
+        :return: True when the hardware now holds a background.
         """
         pass
