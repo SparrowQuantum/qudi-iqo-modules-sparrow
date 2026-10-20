@@ -55,16 +55,35 @@ class WinSpec32(SpectrometerInterface):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._status = 0
+        self._connected = False
 
         self.query_time = 0.01
 
     def on_activate(self):
-        """Activate module."""
-        w32c.pythoncom.CoInitialize()
+        """Activate module. COM is initialised on first use."""
+        pass
 
     def on_deactivate(self):
         """Deactivate module."""
-        pass
+        self.close_connection()
+
+    def open_connection(self):
+        """Initialise COM for this thread, so WinSpec32 can be dispatched.
+
+        Calling this when COM is already set up does nothing. Each method sets
+        COM up again on its own thread, as Windows requires, so this only
+        records that the module has reached WinSpec32 at least once.
+
+        :raises IOError: If COM cannot be initialised.
+        """
+        if self._connected:
+            return
+        w32c.pythoncom.CoInitialize()
+        self._connected = True
+
+    def close_connection(self):
+        """Forget the COM connection."""
+        self._connected = False
 
     def check_status(self, method='unknown'):
         if self.status:

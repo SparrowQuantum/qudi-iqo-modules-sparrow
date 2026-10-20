@@ -70,10 +70,26 @@ class Lightfield(SpectrometerInterface):
     """
 
     def on_activate(self):
-        """Activate module.
+        """Activate module. LightField is started on first use."""
+        self.au = None
 
-        This method needs to set ip the CLR to Python binding and start Lightfield.
+    def on_deactivate(self):
+        """Deactivate module."""
+        self.close_connection()
+
+    def open_connection(self):
+        """Set up the CLR to Python binding and start LightField.
+
+        Calling this when LightField is already running does nothing. Every
+        method that talks to it calls this first, so the first request starts
+        it. Loading the module deliberately does not, since starting LightField
+        is slow and fails outright when LIGHTFIELD_ROOT is unset or the
+        application refuses to launch.
+
+        :raises IOError: If LightField cannot be started.
         """
+        if self.au is not None:
+            return
 
         lfpath = os.environ["LIGHTFIELD_ROOT"]
         lfaddinpath = os.path.join(os.environ["LIGHTFIELD_ROOT"], "AddInViews")
@@ -125,24 +141,29 @@ class Lightfield(SpectrometerInterface):
 
         self.lastframe = list()
 
-    def on_deactivate(self):
-        """Deactivate module."""
-        self.app.UserInteractionManager.SuppressUserInteraction = False
-        # disconnect event handlers
-        self.exp.ExperimentCompleted -= EventHandler(self._set_acquisition_complete)
-        self.exp.ImageDataSetReceived -= EventHandler(self._frame_callback)
-        self.exp.SettingChanged -= EventHandler(self._setting_changed_callback)
+    def close_connection(self):
+        """Shut LightField down, logging anything that goes wrong."""
+        if self.au is None:
+            return
+        try:
+            self.app.UserInteractionManager.SuppressUserInteraction = False
+            # disconnect event handlers
+            self.exp.ExperimentCompleted -= EventHandler(self._set_acquisition_complete)
+            self.exp.ImageDataSetReceived -= EventHandler(self._frame_callback)
+            self.exp.SettingChanged -= EventHandler(self._setting_changed_callback)
 
-        self.au.Dispose()
-
-        if hasattr(self, "au"):
-            del self.au
+            self.au.Dispose()
+        except Exception:
+            self.log.exception("Failed to shut LightField down")
+        self.au = None
 
     def _set_value(self, setting, value):
+        self.open_connection()
         if self.exp.Exists(setting):
             self.exp.SetValue(setting, value)
 
     def _get_value(self, setting):
+        self.open_connection()
         if self.exp.Exists(setting):
             return self.exp.GetValue(setting)
 
@@ -304,6 +325,7 @@ class Lightfield(SpectrometerInterface):
 
     def record_spectrum(self) -> np.ndarray:
         """Record a single spectrum and return it as a numpy array (2,N) where N is the number of pixels"""
+        self.open_connection()
         self._start_acquire()
 
         data = np.zeros((2, self.pixels_in_spectrum))
@@ -341,6 +363,7 @@ class Lightfield(SpectrometerInterface):
         return self.exp.IsRunning
 
     def stop_acquisition(self):
+        self.open_connection()
         if self.is_running:
             self.exp.Stop()
 

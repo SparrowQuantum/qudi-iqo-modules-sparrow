@@ -49,16 +49,39 @@ class OceanOptics(SpectrometerInterface):
         self._spectrometer = None
 
     def on_activate(self):
-        """Activate module."""
+        """Activate module. The spectrometer is opened on first use."""
+        pass
+
+    def on_deactivate(self):
+        """Deactivate module."""
+        self.close_connection()
+
+    def open_connection(self):
+        """Open the spectrometer and apply the stored integration time.
+
+        Calling this when the spectrometer is already open does nothing. Every
+        method that talks to it calls this first, so whichever request comes
+        first opens the device.
+
+        :raises IOError: If no spectrometer with the configured serial answers.
+        """
+        if self._spectrometer is not None:
+            return
         self.log.info(f'available spectrometers: {sb.list_devices()}')
         self._spectrometer = sb.Spectrometer.from_serial_number(self._serial)
         self.log.info(''.format(self._spectrometer.model, self._spectrometer.serial_number))
         self.exposure_time = self._integration_time
         self.log.info(f'Exposure set to {self._integration_time} seconds')
 
-    def on_deactivate(self):
-        """Deactivate module."""
-        self._spectrometer.close()
+    def close_connection(self):
+        """Close the spectrometer, logging anything that goes wrong."""
+        if self._spectrometer is None:
+            return
+        try:
+            self._spectrometer.close()
+        except Exception:
+            self.log.exception('Failed to close the Ocean Optics spectrometer')
+        self._spectrometer = None
 
     def record_spectrum(self):
         """Record a spectrum from the Ocean Optics spectrometer.
@@ -66,6 +89,7 @@ class OceanOptics(SpectrometerInterface):
         :return: (2, N) array holding the wavelengths in metres and their
             intensities.
         """
+        self.open_connection()
         wavelengths = self._spectrometer.wavelengths()
         specdata = np.empty((2, len(wavelengths)), dtype=np.double)
         specdata[0] = wavelengths / 1e9
@@ -87,6 +111,7 @@ class OceanOptics(SpectrometerInterface):
         :param value: Exposure time in seconds.
         """
         assert isinstance(value, (float, int)), f'exposure_time needs to be a float in seconds, but was {value}'
+        self.open_connection()
         self._integration_time = float(value)
         self._spectrometer.integration_time_micros(int(self._integration_time * 1e6))
 

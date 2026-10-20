@@ -45,6 +45,7 @@ class SpectrometerDummy(SpectrometerInterface):
         self._shutter_open = True
         self._centre_wavelength = 740e-9
         self._stop_requested = False
+        self._connected = False
 
     def on_activate(self):
         """Activate module."""
@@ -52,7 +53,15 @@ class SpectrometerDummy(SpectrometerInterface):
 
     def on_deactivate(self):
         """Deactivate module."""
-        pass
+        self.close_connection()
+
+    def open_connection(self):
+        """Open the simulated device, which always succeeds."""
+        self._connected = True
+
+    def close_connection(self):
+        """Close the simulated device."""
+        self._connected = False
 
     def record_spectrum(self):
         """Record a dummy spectrum.
@@ -60,6 +69,7 @@ class SpectrometerDummy(SpectrometerInterface):
         :return: (2, 1024) array holding the simulated wavelengths in metres
             and their intensities.
         """
+        self.open_connection()
         length = 1024
 
         # The window follows the centre wavelength, keeping the emitter line
