@@ -70,11 +70,39 @@ class Lightfield(SpectrometerInterface):
     """
 
     def on_activate(self):
-        """Activate module.
+        """Activate module and start LightField.
 
-        This method needs to set ip the CLR to Python binding and start Lightfield.
+        Unlike other spectrometers, this one launches LightField here: the
+        module is a remote control for that application, and is of no use
+        without it.
+
+        :raises IOError: If LightField cannot be started.
         """
+        self._lightfield_automation = None
+        self.open_connection()
 
+    def on_deactivate(self):
+        """Deactivate module."""
+        self.close_connection()
+
+    def open_connection(self):
+        """Set up the CLR to Python binding and start LightField.
+
+        Calling this when LightField is already running does nothing. Every
+        method that talks to it calls this first, so it is started again after
+        an explicit close_connection().
+
+        :raises IOError: If LightField cannot be started.
+        """
+        if self._lightfield_automation is not None:
+            return
+        try:
+            self._launch_lightfield()
+        except Exception as exc:
+            self.close_connection()
+            raise IOError("Failed to start LightField") from exc
+
+    def _launch_lightfield(self):
         lfpath = os.environ["LIGHTFIELD_ROOT"]
         lfaddinpath = os.path.join(os.environ["LIGHTFIELD_ROOT"], "AddInViews")
 
@@ -104,8 +132,8 @@ class Lightfield(SpectrometerInterface):
         # import PrincetonInstruments.LightField.AddIns as ai
 
         lst = col.List[System.String]()
-        self.au = Automation(True, lst)
-        self.app = self.au.LightFieldApplication
+        self._lightfield_automation = Automation(True, lst)
+        self.app = self._lightfield_automation.LightFieldApplication
         self.exp = self.app.Experiment
         self.cam_setting = CameraSettings
         self.spec_setting = SpectrometerSettings
@@ -125,29 +153,39 @@ class Lightfield(SpectrometerInterface):
 
         self.lastframe = list()
 
-    def on_deactivate(self):
-        """Deactivate module."""
-        self.app.UserInteractionManager.SuppressUserInteraction = False
-        # disconnect event handlers
-        self.exp.ExperimentCompleted -= EventHandler(self._set_acquisition_complete)
-        self.exp.ImageDataSetReceived -= EventHandler(self._frame_callback)
-        self.exp.SettingChanged -= EventHandler(self._setting_changed_callback)
-
-        self.au.Dispose()
-
-        if hasattr(self, "au"):
-            del self.au
+    def close_connection(self):
+        """Shut LightField down, logging anything that goes wrong."""
+        if self._lightfield_automation is None:
+            return
+        try:
+            self.app.UserInteractionManager.SuppressUserInteraction = False
+            # disconnect event handlers
+            self.exp.ExperimentCompleted -= EventHandler(self._set_acquisition_complete)
+            self.exp.ImageDataSetReceived -= EventHandler(self._frame_callback)
+            self.exp.SettingChanged -= EventHandler(self._setting_changed_callback)
+        except Exception:
+            self.log.exception("Failed to disconnect LightField event handlers")
+        finally:
+            try:
+                self._lightfield_automation.Dispose()
+            except Exception:
+                self.log.exception("Failed to shut LightField down")
+            finally:
+                self._lightfield_automation = None
 
     def _set_value(self, setting, value):
+        self.open_connection()
         if self.exp.Exists(setting):
             self.exp.SetValue(setting, value)
 
     def _get_value(self, setting):
+        self.open_connection()
         if self.exp.Exists(setting):
             return self.exp.GetValue(setting)
 
     def get_minimum_and_maximum_exposure_time(self) -> dict:
         """Get the minimum and maximum exposure time in seconds"""
+        self.open_connection()
         min = self.exp.GetMaximumRange(
             self.cam_setting.ShutterTimingExposureTime
         ).Minimum
@@ -180,14 +218,17 @@ class Lightfield(SpectrometerInterface):
 
     def get_experiment_list(self):
         """Get experiments configured in Lightfield"""
+        self.open_connection()
         return [savedexperiment for savedexperiment in self.exp.GetSavedExperiments()]
 
     def save_experiment(self, experiment_name: str):
         """Saves experiments configured in Lightfield"""
+        self.open_connection()
         self.exp.SaveAs(experiment_name)
 
     def load_experiment(self, experiment_name: str):
         """Open experiments configured in Lightfield"""
+        self.open_connection()
         if self.exp.Exists(experiment_name):
             self.exp.Load(experiment_name)
         else:
@@ -196,7 +237,7 @@ class Lightfield(SpectrometerInterface):
     def _start_acquire(self):
         """Acquire a frame/spectrum"""
         if self.is_running:
-            self.stop_aquisition()
+            self.stop_acquisition()
             time.sleep(0.2)
 
         if self.module_state() == "locked":
@@ -214,21 +255,25 @@ class Lightfield(SpectrometerInterface):
     # write a function that save folder path and file name
     def set_file_directory(self, folder_path: str, file_name: str):
         """Set the file path and name for storing recorded frame/spectrum"""
+        self.open_connection()
         if not Path(folder_path).is_dir():
             raise ValueError(f"Folder path {folder_path} is not a directory")
         self._set_value(self.exp_setting.FileNameGenerationDirectory, folder_path)
 
     def get_file_director(self) -> str:
         """Get the file path and name for storing recorded frame/spectrum"""
+        self.open_connection()
         return self._get_value(self.exp_setting.FileNameGenerationDirectory)
 
     @property
     def number_of_frames(self):
         """Get the number of frames to store"""
+        self.open_connection()
         return self._get_value(self.exp_setting.AcquisitionFramesToStore)
 
     @number_of_frames.setter
     def number_of_frames(self, value: int):
+        self.open_connection()
         self._set_value(self.exp_setting.AcquisitionFramesToStore, str(value))
 
     @property
@@ -236,11 +281,13 @@ class Lightfield(SpectrometerInterface):
         """Get the shutter mode:
         Normal, AlwaysClosed, AlwaysOpen
         """
+        self.open_connection()
         shutter_mode = self._get_value(self.cam_setting.ShutterTimingMode).ToString()
         return shutter_mode
 
     @shutter.setter
     def shutter(self, shutter_mode: str):
+        self.open_connection()
         if shutter_mode not in ShutterTimingMode.__members__:
             raise ValueError()
         else:
@@ -274,11 +321,13 @@ class Lightfield(SpectrometerInterface):
     @property
     def pixels_in_spectrum(self):
         """Length is the number of pixels in the spectrum."""
+        self.open_connection()
         return self.exp.SystemColumnCalibration.Length
 
     @property
     def exposure_time(self) -> float:
         """Get the exposure time in seconds"""
+        self.open_connection()
 
         value_in_milliseconds = self._get_value(
             self.cam_setting.ShutterTimingExposureTime
@@ -288,6 +337,7 @@ class Lightfield(SpectrometerInterface):
 
     @exposure_time.setter
     def exposure_time(self, value: float):
+        self.open_connection()
         if (
             value < self.exposure_time_limits["min"]
             or value > self.exposure_time_limits["max"]
@@ -304,6 +354,7 @@ class Lightfield(SpectrometerInterface):
 
     def record_spectrum(self) -> np.ndarray:
         """Record a single spectrum and return it as a numpy array (2,N) where N is the number of pixels"""
+        self.open_connection()
         self._start_acquire()
 
         data = np.zeros((2, self.pixels_in_spectrum))
@@ -315,17 +366,35 @@ class Lightfield(SpectrometerInterface):
 
     def get_wavelength_array(self) -> np.ndarray:
         """Get the wavelength array in meters"""
+        self.open_connection()
         wl_list = [
             float(self.exp.SystemColumnCalibration.Get(i)) * 1e-9
             for i in range(0, self.pixels_in_spectrum)
         ]
         return np.asarray(wl_list)
 
+    def get_center_wavelength(self) -> float:
+        """Refuse a centre wavelength read, as LightField owns the grating.
+
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError("LightField owns the grating position")
+
+    def set_center_wavelength(self, value: float):
+        """Refuse a centre wavelength move, as LightField owns the grating.
+
+        :param value: Ignored.
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError("LightField owns the grating position")
+
     @property
     def is_running(self):
-        return self.exp.IsRunning
+        return self._lightfield_automation is not None and self.exp.IsRunning
 
-    def stop_aquisition(self):
+    def stop_acquisition(self):
+        if self._lightfield_automation is None:
+            return
         if self.is_running:
             self.exp.Stop()
 

@@ -22,6 +22,7 @@ You should have received a copy of the GNU Lesser General Public License along w
 If not, see <https://www.gnu.org/licenses/>.
 """
 
+from qudi.core.statusvariable import StatusVar
 from qudi.interface.spectrometer_interface import SpectrometerInterface
 import numpy as np
 import comtypes.client as ctc
@@ -36,7 +37,7 @@ import comtypes.gen.WINX32Lib as WinSpecLib
 
 
 class WinSpec32(SpectrometerInterface):
-    """ Hardware module for reading spectra from the WinSpec32 spectrometer software.
+    """Hardware module for reading spectra from the WinSpec32 spectrometer software.
 
     Example config for copy-paste:
 
@@ -52,21 +53,47 @@ class WinSpec32(SpectrometerInterface):
         4: {'name': 'min', 'factor': 60}
     }
 
+    _exposure_time = StatusVar(name='exposure_time', default=0.1)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._status = 0
+        self._connected = False
 
         self.query_time = 0.01
 
     def on_activate(self):
-        """ Activate module.
-        """
-        w32c.pythoncom.CoInitialize()
+        """Activate module. COM is initialised on first use."""
+        pass
 
     def on_deactivate(self):
-        """ Deactivate module.
+        """Deactivate module."""
+        self.close_connection()
+
+    def open_connection(self):
+        """Dispatch WinSpec32 once, so a missing or broken install surfaces here.
+
+        WinSpec32 is an out-of-process COM server, so dispatching it launches
+        the application when it is not running; this does not test whether it
+        already was. Calling this when WinSpec32 has already answered does
+        nothing. Each method sets COM up again on its own thread, as Windows
+        requires, so this only records that the module has reached WinSpec32
+        at least once.
+
+        :raises IOError: If WinSpec32 cannot be dispatched.
         """
-        pass
+        if self._connected:
+            return
+        try:
+            w32c.pythoncom.CoInitialize()
+            w32c.Dispatch("WinX32.ExpSetup")
+        except w32c.pythoncom.com_error as exc:
+            raise IOError('Failed to reach WinSpec32') from exc
+        self._connected = True
+
+    def close_connection(self):
+        """Forget the COM connection."""
+        self._connected = False
 
     def check_status(self, method='unknown'):
         if self.status:
@@ -74,6 +101,8 @@ class WinSpec32(SpectrometerInterface):
 
     @property
     def experiment_running(self):
+        if not self._connected:
+            return False
         w32c.pythoncom.CoInitialize()
         experiment_instance = w32c.Dispatch("WinX32.ExpSetup")
         result, self._status = experiment_instance.GetParam(WinSpecLib.EXP_RUNNING)
@@ -86,6 +115,13 @@ class WinSpec32(SpectrometerInterface):
 
     @property
     def exposure_time(self):
+        """Get the exposure time in seconds.
+
+        Before WinSpec32 has answered this returns the last known value, so
+        reading it never dispatches WinSpec32.
+        """
+        if not self._connected:
+            return self._exposure_time
         w32c.pythoncom.CoInitialize()
         experiment_instance = w32c.Dispatch("WinX32.ExpSetup")
         exposure_time, self._status = experiment_instance.GetParam(WinSpecLib.EXP_EXPOSURETIME)
@@ -93,11 +129,13 @@ class WinSpec32(SpectrometerInterface):
         units, self._status = experiment_instance.GetParam(WinSpecLib.EXP_EXPOSURETIME_UNITS)
         self.check_status('exposure_time units')
         exposure_time *= self.time_units[units]['factor']
+        self._exposure_time = exposure_time
         return exposure_time
 
     @exposure_time.setter
     def exposure_time(self, value):
         assert isinstance(value, (float, int)), f'exposure_time needs to be float, but was {value}'
+        self.open_connection()
         w32c.pythoncom.CoInitialize()
         experiment_instance = w32c.Dispatch("WinX32.ExpSetup")
         value = abs(float(value))
@@ -110,15 +148,32 @@ class WinSpec32(SpectrometerInterface):
         else:
             unit = 3
 
-        experiment_instance.SetParam(WinSpecLib.EXP_EXPOSURETIME_UNITS, unit)
+        self._status = experiment_instance.SetParam(WinSpecLib.EXP_EXPOSURETIME_UNITS, unit)
         self.check_status(f'exposure_time setting unit to {unit} ({self.time_units[unit]["name"]})')
 
         self._status = experiment_instance.SetParam(WinSpecLib.EXP_EXPOSURETIME, value)
         self.check_status(f'exposure_time setting to {value}')
+        self._exposure_time = value * self.time_units[unit]['factor']
+
+    @property
+    def shutter_open(self) -> bool:
+        """Report the shutter state, which WinSpec32 owns.
+
+        :return: Always True, as this module never closes it.
+        """
+        return True
+
+    @shutter_open.setter
+    def shutter_open(self, value):
+        """Ignore the request, as WinSpec32 owns the shutter.
+
+        :param value: Ignored.
+        """
+        pass
 
     @property
     def background_correction(self):
-        """ Hardware background correction. Not supported. """
+        """Hardware background correction. Not supported."""
         return False
 
     @background_correction.setter
@@ -126,14 +181,38 @@ class WinSpec32(SpectrometerInterface):
         pass
 
     def acquire_background(self):
-        """ Hardware background acquisition. Not supported. """
+        """Hardware background acquisition. Not supported."""
         return False
 
-    def record_spectrum(self):
-        """ Record spectrum from WinSpec32 software.
+    def stop_acquisition(self):
+        """Refuse cancellation, which is driven from WinSpec32.
 
-            @return []: spectrum data
+        :raises NotImplementedError: Always.
         """
+        raise NotImplementedError('acquisitions are stopped in WinSpec32')
+
+    def get_center_wavelength(self) -> float:
+        """Refuse a centre wavelength read, as WinSpec32 owns the grating.
+
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError('WinSpec32 owns the grating position')
+
+    def set_center_wavelength(self, value: float):
+        """Refuse a centre wavelength move, as WinSpec32 owns the grating.
+
+        :param value: Ignored.
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError('WinSpec32 owns the grating position')
+
+    def record_spectrum(self):
+        """Record a spectrum from the WinSpec32 software.
+
+        :return: (2, N) array holding the wavelengths in metres and their
+            intensities, or None when the acquisition could not be started.
+        """
+        self.open_connection()
         w32c.pythoncom.CoInitialize()
         # get some data structures from COM that we need later
         current_spectrum = w32c.Dispatch("WinX32.DocFile")
@@ -143,7 +222,7 @@ class WinSpec32(SpectrometerInterface):
         # Close all documents so we do not get any errors or prompts to save the currently opened spectrum in WinSpec32
         spectrum_library_instance.CloseAll()
 
-        if experiment_instance.Start(self.WinspecDoc)[0]:
+        if experiment_instance.Start(current_spectrum)[0]:
             # start the experiment
             # Wait for acquisition to finish (and check for errors continually)
             # If we didn't care about errors, we could just run WinspecExpt.WaitForExperiment()
@@ -184,11 +263,12 @@ class WinSpec32(SpectrometerInterface):
             return None
 
     def save_spectrum(self, path, postfix=''):
-        """ Save spectrum from WinSpec32 software.
+        """Save a spectrum from the WinSpec32 software.
 
-            @param str path: path to save origial spectrum
-            @param str postfix: file posfix
+        :param path: Path to save the original spectrum to.
+        :param postfix: Suffix appended to the file name.
         """
+        self.open_connection()
         w32c.pythoncom.CoInitialize()
         current_spectrum = w32c.Dispatch("WinX32.DocFile")
 
@@ -198,7 +278,7 @@ class WinSpec32(SpectrometerInterface):
             WinSpecLib.DM_FILENAME,
             str(path) + timestr + str(postfix) + ".spe"
         )
-        file_name, self._status = self.WinspecDoc.GetParam(WinSpecLib.DM_FILENAME)
+        file_name, self._status = current_spectrum.GetParam(WinSpecLib.DM_FILENAME)
         self.check_status('save_spectrum set filename')
         self.log.debug(file_name)
         current_spectrum.Save()
