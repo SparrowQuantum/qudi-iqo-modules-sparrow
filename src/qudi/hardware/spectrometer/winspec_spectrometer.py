@@ -71,11 +71,14 @@ class WinSpec32(SpectrometerInterface):
         self.close_connection()
 
     def open_connection(self):
-        """Check that WinSpec32 can be dispatched from this thread.
+        """Dispatch WinSpec32 once, so a missing or broken install surfaces here.
 
-        Calling this when WinSpec32 has already answered does nothing. Each
-        method sets COM up again on its own thread, as Windows requires, so
-        this only records that the module has reached WinSpec32 at least once.
+        WinSpec32 is an out-of-process COM server, so dispatching it launches
+        the application when it is not running; this does not test whether it
+        already was. Calling this when WinSpec32 has already answered does
+        nothing. Each method sets COM up again on its own thread, as Windows
+        requires, so this only records that the module has reached WinSpec32
+        at least once.
 
         :raises IOError: If WinSpec32 cannot be dispatched.
         """
@@ -143,7 +146,7 @@ class WinSpec32(SpectrometerInterface):
         else:
             unit = 3
 
-        experiment_instance.SetParam(WinSpecLib.EXP_EXPOSURETIME_UNITS, unit)
+        self._status = experiment_instance.SetParam(WinSpecLib.EXP_EXPOSURETIME_UNITS, unit)
         self.check_status(f'exposure_time setting unit to {unit} ({self.time_units[unit]["name"]})')
 
         self._status = experiment_instance.SetParam(WinSpecLib.EXP_EXPOSURETIME, value)
