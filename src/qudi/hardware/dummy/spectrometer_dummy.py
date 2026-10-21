@@ -152,14 +152,14 @@ class SpectrometerDummy(SpectrometerInterface):
         """End the simulated exposure early."""
         self._stop_requested = True
 
-    def get_wavelength(self):
+    def get_center_wavelength(self):
         """Get the simulated centre wavelength.
 
         :return: Centre wavelength in metres.
         """
         return self._centre_wavelength
 
-    def set_wavelength(self, value):
+    def set_center_wavelength(self, value):
         """Set the simulated centre wavelength.
 
         :param value: Centre wavelength in metres.

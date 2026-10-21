@@ -169,14 +169,14 @@ class WinSpec32(SpectrometerInterface):
         """
         raise NotImplementedError('acquisitions are stopped in WinSpec32')
 
-    def get_wavelength(self) -> float:
+    def get_center_wavelength(self) -> float:
         """Refuse a centre wavelength read, as WinSpec32 owns the grating.
 
         :raises NotImplementedError: Always.
         """
         raise NotImplementedError('WinSpec32 owns the grating position')
 
-    def set_wavelength(self, value: float):
+    def set_center_wavelength(self, value: float):
         """Refuse a centre wavelength move, as WinSpec32 owns the grating.
 
         :param value: Ignored.

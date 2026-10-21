@@ -343,14 +343,14 @@ class Lightfield(SpectrometerInterface):
         ]
         return np.asarray(wl_list)
 
-    def get_wavelength(self) -> float:
+    def get_center_wavelength(self) -> float:
         """Refuse a centre wavelength read, as LightField owns the grating.
 
         :raises NotImplementedError: Always.
         """
         raise NotImplementedError("LightField owns the grating position")
 
-    def set_wavelength(self, value: float):
+    def set_center_wavelength(self, value: float):
         """Refuse a centre wavelength move, as LightField owns the grating.
 
         :param value: Ignored.

@@ -153,14 +153,14 @@ class OceanOptics(SpectrometerInterface):
         """
         raise NotImplementedError('OceanOptics acquisitions cannot be stopped')
 
-    def get_wavelength(self) -> float:
+    def get_center_wavelength(self) -> float:
         """Refuse a centre wavelength read, as the dispersion is fixed.
 
         :raises NotImplementedError: Always.
         """
         raise NotImplementedError('OceanOptics has no movable grating')
 
-    def set_wavelength(self, value: float):
+    def set_center_wavelength(self, value: float):
         """Refuse a centre wavelength move, as the dispersion is fixed.
 
         :param value: Ignored.

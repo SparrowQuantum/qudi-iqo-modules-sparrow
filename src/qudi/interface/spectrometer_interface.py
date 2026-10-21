@@ -139,7 +139,7 @@ class SpectrometerInterface(Base):
         pass
 
     @abstractmethod
-    def get_wavelength(self) -> float:
+    def get_center_wavelength(self) -> float:
         """Get the centre wavelength of the spectrometer.
 
         :return: Centre wavelength in metres.
@@ -148,7 +148,7 @@ class SpectrometerInterface(Base):
         pass
 
     @abstractmethod
-    def set_wavelength(self, value: float):
+    def set_center_wavelength(self, value: float):
         """Set the centre wavelength of the spectrometer.
 
         Returns once the grating has reached the position.
