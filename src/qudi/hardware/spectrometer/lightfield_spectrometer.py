@@ -27,7 +27,6 @@ import time
 
 import numpy as np
 
-from qudi.core.statusvariable import StatusVar
 from qudi.interface.spectrometer_interface import SpectrometerInterface
 
 import os, glob, string
@@ -70,11 +69,17 @@ class Lightfield(SpectrometerInterface):
 
     """
 
-    _exposure_time = StatusVar(name="exposure_time", default=0.1)
-
     def on_activate(self):
-        """Activate module. LightField is started on first use."""
+        """Activate module and start LightField.
+
+        Unlike other spectrometers, this one launches LightField here: the
+        module is a remote control for that application, and is of no use
+        without it.
+
+        :raises IOError: If LightField cannot be started.
+        """
         self._lightfield_automation = None
+        self.open_connection()
 
     def on_deactivate(self):
         """Deactivate module."""
@@ -84,10 +89,8 @@ class Lightfield(SpectrometerInterface):
         """Set up the CLR to Python binding and start LightField.
 
         Calling this when LightField is already running does nothing. Every
-        method that talks to it calls this first, so the first request starts
-        it. Loading the module deliberately does not, since starting LightField
-        is slow and fails outright when LIGHTFIELD_ROOT is unset or the
-        application refuses to launch.
+        method that talks to it calls this first, so it is started again after
+        an explicit close_connection().
 
         :raises IOError: If LightField cannot be started.
         """
@@ -323,20 +326,14 @@ class Lightfield(SpectrometerInterface):
 
     @property
     def exposure_time(self) -> float:
-        """Get the exposure time in seconds.
-
-        Before LightField is started this returns the last known value, so
-        reading it never launches LightField.
-        """
-        if self._lightfield_automation is None:
-            return self._exposure_time
+        """Get the exposure time in seconds"""
+        self.open_connection()
 
         value_in_milliseconds = self._get_value(
             self.cam_setting.ShutterTimingExposureTime
         )
 
-        self._exposure_time = float(value_in_milliseconds / 1e3)
-        return self._exposure_time
+        return float(value_in_milliseconds / 1e3)
 
     @exposure_time.setter
     def exposure_time(self, value: float):
@@ -354,7 +351,6 @@ class Lightfield(SpectrometerInterface):
         self._set_value(
             self.cam_setting.ShutterTimingExposureTime, value_in_milliseconds
         )
-        self._exposure_time = float(value)
 
     def record_spectrum(self) -> np.ndarray:
         """Record a single spectrum and return it as a numpy array (2,N) where N is the number of pixels"""

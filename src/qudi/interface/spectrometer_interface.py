@@ -37,9 +37,11 @@ class SpectrometerInterface(Base):
     def open_connection(self):
         """Establish communication with the spectrometer.
 
-        Activation must not reach the device, so that a spectrometer that is
+        Activation should not reach the device, so that a spectrometer that is
         switched off, moved or still booting cannot stop the module, its logic
-        and its GUI from loading.
+        and its GUI from loading. A module that remote-controls external
+        software, and is of no use without it, may instead start that
+        software on activation and fail activation if it cannot.
 
         Calling this when the connection is already open does nothing, so a
         caller may use it before every exchange without keeping track. Each
