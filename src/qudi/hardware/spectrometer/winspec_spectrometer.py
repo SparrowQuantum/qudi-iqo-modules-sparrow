@@ -22,6 +22,7 @@ You should have received a copy of the GNU Lesser General Public License along w
 If not, see <https://www.gnu.org/licenses/>.
 """
 
+from qudi.core.statusvariable import StatusVar
 from qudi.interface.spectrometer_interface import SpectrometerInterface
 import numpy as np
 import comtypes.client as ctc
@@ -52,6 +53,8 @@ class WinSpec32(SpectrometerInterface):
         4: {'name': 'min', 'factor': 60}
     }
 
+    _exposure_time = StatusVar(name='exposure_time', default=0.1)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._status = 0
@@ -68,17 +71,21 @@ class WinSpec32(SpectrometerInterface):
         self.close_connection()
 
     def open_connection(self):
-        """Initialise COM for this thread, so WinSpec32 can be dispatched.
+        """Check that WinSpec32 can be dispatched from this thread.
 
-        Calling this when COM is already set up does nothing. Each method sets
-        COM up again on its own thread, as Windows requires, so this only
-        records that the module has reached WinSpec32 at least once.
+        Calling this when WinSpec32 has already answered does nothing. Each
+        method sets COM up again on its own thread, as Windows requires, so
+        this only records that the module has reached WinSpec32 at least once.
 
-        :raises IOError: If COM cannot be initialised.
+        :raises IOError: If WinSpec32 cannot be dispatched.
         """
         if self._connected:
             return
-        w32c.pythoncom.CoInitialize()
+        try:
+            w32c.pythoncom.CoInitialize()
+            w32c.Dispatch("WinX32.ExpSetup")
+        except w32c.pythoncom.com_error as exc:
+            raise IOError('Failed to reach WinSpec32') from exc
         self._connected = True
 
     def close_connection(self):
@@ -103,6 +110,13 @@ class WinSpec32(SpectrometerInterface):
 
     @property
     def exposure_time(self):
+        """Get the exposure time in seconds.
+
+        Before WinSpec32 has answered this returns the last known value, so
+        reading it never dispatches WinSpec32.
+        """
+        if not self._connected:
+            return self._exposure_time
         w32c.pythoncom.CoInitialize()
         experiment_instance = w32c.Dispatch("WinX32.ExpSetup")
         exposure_time, self._status = experiment_instance.GetParam(WinSpecLib.EXP_EXPOSURETIME)
@@ -110,11 +124,13 @@ class WinSpec32(SpectrometerInterface):
         units, self._status = experiment_instance.GetParam(WinSpecLib.EXP_EXPOSURETIME_UNITS)
         self.check_status('exposure_time units')
         exposure_time *= self.time_units[units]['factor']
+        self._exposure_time = exposure_time
         return exposure_time
 
     @exposure_time.setter
     def exposure_time(self, value):
         assert isinstance(value, (float, int)), f'exposure_time needs to be float, but was {value}'
+        self.open_connection()
         w32c.pythoncom.CoInitialize()
         experiment_instance = w32c.Dispatch("WinX32.ExpSetup")
         value = abs(float(value))
@@ -132,6 +148,7 @@ class WinSpec32(SpectrometerInterface):
 
         self._status = experiment_instance.SetParam(WinSpecLib.EXP_EXPOSURETIME, value)
         self.check_status(f'exposure_time setting to {value}')
+        self._exposure_time = value * self.time_units[unit]['factor']
 
     @property
     def shutter_open(self) -> bool:
