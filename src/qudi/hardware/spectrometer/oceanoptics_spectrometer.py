@@ -67,9 +67,9 @@ class OceanOptics(SpectrometerInterface):
         """
         if self._spectrometer is not None:
             return
-        self.log.info(f'available spectrometers: {sb.list_devices()}')
         # cseabreeze and pyseabreeze raise unrelated types, so catch broadly and normalise
         try:
+            self.log.info(f'available spectrometers: {sb.list_devices()}')
             self._spectrometer = sb.Spectrometer.from_serial_number(self._serial)
             self.log.info(''.format(self._spectrometer.model, self._spectrometer.serial_number))
             self.exposure_time = self._integration_time

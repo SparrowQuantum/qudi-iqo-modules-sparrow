@@ -182,6 +182,7 @@ class Lightfield(SpectrometerInterface):
 
     def get_minimum_and_maximum_exposure_time(self) -> dict:
         """Get the minimum and maximum exposure time in seconds"""
+        self.open_connection()
         min = self.exp.GetMaximumRange(
             self.cam_setting.ShutterTimingExposureTime
         ).Minimum

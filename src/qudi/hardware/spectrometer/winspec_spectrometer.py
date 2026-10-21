@@ -101,6 +101,8 @@ class WinSpec32(SpectrometerInterface):
 
     @property
     def experiment_running(self):
+        if not self._connected:
+            return False
         w32c.pythoncom.CoInitialize()
         experiment_instance = w32c.Dispatch("WinX32.ExpSetup")
         result, self._status = experiment_instance.GetParam(WinSpecLib.EXP_RUNNING)
@@ -210,6 +212,7 @@ class WinSpec32(SpectrometerInterface):
         :return: (2, N) array holding the wavelengths in metres and their
             intensities, or None when the acquisition could not be started.
         """
+        self.open_connection()
         w32c.pythoncom.CoInitialize()
         # get some data structures from COM that we need later
         current_spectrum = w32c.Dispatch("WinX32.DocFile")
@@ -219,7 +222,7 @@ class WinSpec32(SpectrometerInterface):
         # Close all documents so we do not get any errors or prompts to save the currently opened spectrum in WinSpec32
         spectrum_library_instance.CloseAll()
 
-        if experiment_instance.Start(self.WinspecDoc)[0]:
+        if experiment_instance.Start(current_spectrum)[0]:
             # start the experiment
             # Wait for acquisition to finish (and check for errors continually)
             # If we didn't care about errors, we could just run WinspecExpt.WaitForExperiment()
@@ -265,6 +268,7 @@ class WinSpec32(SpectrometerInterface):
         :param path: Path to save the original spectrum to.
         :param postfix: Suffix appended to the file name.
         """
+        self.open_connection()
         w32c.pythoncom.CoInitialize()
         current_spectrum = w32c.Dispatch("WinX32.DocFile")
 
@@ -274,7 +278,7 @@ class WinSpec32(SpectrometerInterface):
             WinSpecLib.DM_FILENAME,
             str(path) + timestr + str(postfix) + ".spe"
         )
-        file_name, self._status = self.WinspecDoc.GetParam(WinSpecLib.DM_FILENAME)
+        file_name, self._status = current_spectrum.GetParam(WinSpecLib.DM_FILENAME)
         self.check_status('save_spectrum set filename')
         self.log.debug(file_name)
         current_spectrum.Save()
