@@ -24,7 +24,13 @@ If not, see <https://www.gnu.org/licenses/>.
 
 from qudi.core.configoption import ConfigOption
 from qudi.core.statusvariable import StatusVar
-from qudi.interface.spectrometer_interface import SpectrometerInterface
+from qudi.interface.spectrometer_interface import (
+    SpectrometerCommunicationError,
+    SpectrometerConstraints,
+    SpectrometerInterface,
+    SpectrometerUnsupportedFeatureError,
+    Spectrum,
+)
 
 import numpy as np
 import seabreeze.spectrometers as sb
@@ -63,7 +69,8 @@ class OceanOptics(SpectrometerInterface):
         method that talks to it calls this first, so whichever request comes
         first opens the device.
 
-        :raises IOError: If no spectrometer with the configured serial answers.
+        :raises SpectrometerCommunicationError: If no spectrometer with the
+            configured serial answers.
         """
         if self._spectrometer is not None:
             return
@@ -75,7 +82,7 @@ class OceanOptics(SpectrometerInterface):
             self.exposure_time = self._integration_time
         except Exception as exc:
             self.close_connection()
-            raise IOError(f'Failed to open Ocean Optics spectrometer {self._serial}') from exc
+            raise SpectrometerCommunicationError(f'Failed to open Ocean Optics spectrometer {self._serial}') from exc
         self.log.info(f'Exposure set to {self._integration_time} seconds')
 
     def close_connection(self):
@@ -88,18 +95,32 @@ class OceanOptics(SpectrometerInterface):
             self.log.exception('Failed to close the Ocean Optics spectrometer')
         self._spectrometer = None
 
+    @property
+    def constraints(self):
+        """Device limits; the integration time range is read from the device."""
+        self.open_connection()
+        low_us, high_us = self._spectrometer.integration_time_micros_limits
+        return SpectrometerConstraints(
+            value_unit='counts',
+            exposure_time_range=(low_us * 1e-6, high_us * 1e-6),
+            center_wavelength_range=None,
+            has_shutter=False,
+            can_stop_acquisition=False,
+            has_hardware_background=False,
+        )
+
     def record_spectrum(self):
         """Record a spectrum from the Ocean Optics spectrometer.
 
-        :return: (2, N) array holding the wavelengths in metres and their
-            intensities.
+        :return: Wavelengths in metres and their intensities in counts.
         """
         self.open_connection()
-        wavelengths = self._spectrometer.wavelengths()
-        specdata = np.empty((2, len(wavelengths)), dtype=np.double)
-        specdata[0] = wavelengths / 1e9
-        specdata[1] = self._spectrometer.intensities()
-        return specdata
+        try:
+            wavelengths = np.asarray(self._spectrometer.wavelengths(), dtype=np.double)
+            intensities = np.asarray(self._spectrometer.intensities(), dtype=np.double)
+        except Exception as exc:
+            raise SpectrometerCommunicationError('Ocean Optics read failed') from exc
+        return Spectrum(wavelengths * 1e-9, intensities)
 
     @property
     def exposure_time(self):
@@ -116,9 +137,14 @@ class OceanOptics(SpectrometerInterface):
         :param value: Exposure time in seconds.
         """
         assert isinstance(value, (float, int)), f'exposure_time needs to be a float in seconds, but was {value}'
-        self.open_connection()
+        low, high = self.constraints.exposure_time_range
+        if not low <= value <= high:
+            raise ValueError(f'Exposure time {value} s outside [{low}, {high}] s')
+        try:
+            self._spectrometer.integration_time_micros(int(value * 1e6))
+        except Exception as exc:
+            raise SpectrometerCommunicationError('Ocean Optics integration time write failed') from exc
         self._integration_time = float(value)
-        self._spectrometer.integration_time_micros(int(self._integration_time * 1e6))
 
     @property
     def shutter_open(self) -> bool:
@@ -130,11 +156,11 @@ class OceanOptics(SpectrometerInterface):
 
     @shutter_open.setter
     def shutter_open(self, value):
-        """Ignore the request, as the device has no shutter.
+        """Refuse the request, as the device has no shutter.
 
-        :param value: Ignored.
+        :raises SpectrometerUnsupportedFeatureError: Always.
         """
-        pass
+        raise SpectrometerUnsupportedFeatureError('OceanOptics has no shutter')
 
     @property
     def background_correction(self):
@@ -154,21 +180,21 @@ class OceanOptics(SpectrometerInterface):
 
         A read blocks for the integration time and cannot be interrupted.
 
-        :raises NotImplementedError: Always.
+        :raises SpectrometerUnsupportedFeatureError: Always.
         """
-        raise NotImplementedError('OceanOptics acquisitions cannot be stopped')
+        raise SpectrometerUnsupportedFeatureError('OceanOptics acquisitions cannot be stopped')
 
     def get_center_wavelength(self) -> float:
         """Refuse a centre wavelength read, as the dispersion is fixed.
 
-        :raises NotImplementedError: Always.
+        :raises SpectrometerUnsupportedFeatureError: Always.
         """
-        raise NotImplementedError('OceanOptics has no movable grating')
+        raise SpectrometerUnsupportedFeatureError('OceanOptics has no movable grating')
 
     def set_center_wavelength(self, value: float):
         """Refuse a centre wavelength move, as the dispersion is fixed.
 
         :param value: Ignored.
-        :raises NotImplementedError: Always.
+        :raises SpectrometerUnsupportedFeatureError: Always.
         """
-        raise NotImplementedError('OceanOptics has no movable grating')
+        raise SpectrometerUnsupportedFeatureError('OceanOptics has no movable grating')

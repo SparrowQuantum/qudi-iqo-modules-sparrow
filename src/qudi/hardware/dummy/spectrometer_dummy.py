@@ -19,7 +19,11 @@ You should have received a copy of the GNU Lesser General Public License along w
 If not, see <https://www.gnu.org/licenses/>.
 """
 
-from qudi.interface.spectrometer_interface import SpectrometerInterface
+from qudi.interface.spectrometer_interface import (
+    SpectrometerConstraints,
+    SpectrometerInterface,
+    Spectrum,
+)
 
 from time import strftime, localtime
 
@@ -46,6 +50,19 @@ class SpectrometerDummy(SpectrometerInterface):
         self._centre_wavelength = 740e-9
         self._stop_requested = False
         self._connected = False
+        self._constraints = SpectrometerConstraints(
+            value_unit='counts',
+            exposure_time_range=(1e-3, 3600.0),
+            center_wavelength_range=(300e-9, 1100e-9),
+            has_shutter=True,
+            can_stop_acquisition=True,
+            has_hardware_background=False,
+        )
+
+    @property
+    def constraints(self):
+        """Simulated device limits."""
+        return self._constraints
 
     def on_activate(self):
         """Activate module."""
@@ -66,8 +83,7 @@ class SpectrometerDummy(SpectrometerInterface):
     def record_spectrum(self):
         """Record a dummy spectrum.
 
-        :return: (2, 1024) array holding the simulated wavelengths in metres
-            and their intensities.
+        :return: 1024 simulated wavelengths in metres and their intensities.
         """
         self.open_connection()
         length = 1024
@@ -113,7 +129,7 @@ class SpectrometerDummy(SpectrometerInterface):
             time.sleep(slice_s)
             remaining -= slice_s
 
-        return data
+        return Spectrum(data[0], data[1])
 
     @property
     def exposure_time(self):
@@ -123,6 +139,9 @@ class SpectrometerDummy(SpectrometerInterface):
     @exposure_time.setter
     def exposure_time(self, value):
         """Set exposure time."""
+        low, high = self._constraints.exposure_time_range
+        if not low <= value <= high:
+            raise ValueError(f'Exposure time {value} s outside [{low}, {high}] s')
         self._exposure = float(value)
 
     @property
@@ -164,4 +183,7 @@ class SpectrometerDummy(SpectrometerInterface):
 
         :param value: Centre wavelength in metres.
         """
+        low, high = self._constraints.center_wavelength_range
+        if not low <= value <= high:
+            raise ValueError(f'Centre wavelength {value} m outside [{low}, {high}] m')
         self._centre_wavelength = float(value)

@@ -27,7 +27,14 @@ import time
 
 import numpy as np
 
-from qudi.interface.spectrometer_interface import SpectrometerInterface
+from qudi.interface.spectrometer_interface import (
+    SpectrometerAcquisitionError,
+    SpectrometerCommunicationError,
+    SpectrometerConstraints,
+    SpectrometerInterface,
+    SpectrometerUnsupportedFeatureError,
+    Spectrum,
+)
 
 import os, glob, string
 import sys
@@ -76,7 +83,7 @@ class Lightfield(SpectrometerInterface):
         module is a remote control for that application, and is of no use
         without it.
 
-        :raises IOError: If LightField cannot be started.
+        :raises SpectrometerCommunicationError: If LightField cannot be started.
         """
         self._lightfield_automation = None
         self.open_connection()
@@ -92,7 +99,7 @@ class Lightfield(SpectrometerInterface):
         method that talks to it calls this first, so it is started again after
         an explicit close_connection().
 
-        :raises IOError: If LightField cannot be started.
+        :raises SpectrometerCommunicationError: If LightField cannot be started.
         """
         if self._lightfield_automation is not None:
             return
@@ -100,7 +107,7 @@ class Lightfield(SpectrometerInterface):
             self._launch_lightfield()
         except Exception as exc:
             self.close_connection()
-            raise IOError("Failed to start LightField") from exc
+            raise SpectrometerCommunicationError("Failed to start LightField") from exc
 
     def _launch_lightfield(self):
         lfpath = os.environ["LIGHTFIELD_ROOT"]
@@ -186,13 +193,30 @@ class Lightfield(SpectrometerInterface):
     def get_minimum_and_maximum_exposure_time(self) -> dict:
         """Get the minimum and maximum exposure time in seconds"""
         self.open_connection()
+        # LightField reports ShutterTimingExposureTime and its range in milliseconds
         min = self.exp.GetMaximumRange(
             self.cam_setting.ShutterTimingExposureTime
         ).Minimum
         max = self.exp.GetMaximumRange(
             self.cam_setting.ShutterTimingExposureTime
         ).Maximum
-        return dict(min=min, max=max)
+        return dict(min=min / 1e3, max=max / 1e3)
+
+    @property
+    def constraints(self):
+        """Device limits; the exposure range is read from LightField."""
+        self.open_connection()
+        return SpectrometerConstraints(
+            value_unit="counts",
+            exposure_time_range=(
+                self.exposure_time_limits["min"],
+                self.exposure_time_limits["max"],
+            ),
+            center_wavelength_range=None,
+            has_shutter=True,
+            can_stop_acquisition=True,
+            has_hardware_background=False,
+        )
 
     # Callbacks
     def _setting_changed_callback(self, sender, args):
@@ -241,16 +265,16 @@ class Lightfield(SpectrometerInterface):
             time.sleep(0.2)
 
         if self.module_state() == "locked":
-            self.log.warning("Unable to start a acquisition. It is already running.")
-        else:
-            self.calibration = self.exp.SystemColumnCalibration
-            self.calerrors = self.exp.SystemColumnCalibrationErrors
-            self.intcal = self.exp.SystemIntensityCalibration
-            if self.exp.IsReadyToRun:
-                self.module_state.lock()
-                self.exp.Acquire()
-                # Wait for acquisition to complete
-                self.acquireCompleted.WaitOne()
+            raise SpectrometerAcquisitionError("An acquisition is already running")
+        self.calibration = self.exp.SystemColumnCalibration
+        self.calerrors = self.exp.SystemColumnCalibrationErrors
+        self.intcal = self.exp.SystemIntensityCalibration
+        if not self.exp.IsReadyToRun:
+            raise SpectrometerAcquisitionError("LightField experiment is not ready to run")
+        self.module_state.lock()
+        self.exp.Acquire()
+        # Wait for acquisition to complete
+        self.acquireCompleted.WaitOne()
 
     # write a function that save folder path and file name
     def set_file_directory(self, folder_path: str, file_name: str):
@@ -352,8 +376,13 @@ class Lightfield(SpectrometerInterface):
             self.cam_setting.ShutterTimingExposureTime, value_in_milliseconds
         )
 
-    def record_spectrum(self) -> np.ndarray:
-        """Record a single spectrum and return it as a numpy array (2,N) where N is the number of pixels"""
+    def record_spectrum(self) -> Spectrum:
+        """Record a single spectrum.
+
+        :return: Wavelengths in metres and their intensities in counts.
+        :raises SpectrometerAcquisitionError: If an acquisition is already
+            running or the LightField experiment is not ready to run.
+        """
         self.open_connection()
         self._start_acquire()
 
@@ -362,7 +391,7 @@ class Lightfield(SpectrometerInterface):
         if self.exp.ExperimentCompleted:
             data[1, :] = np.asarray(self.lastframe)
 
-        return data
+        return Spectrum(data[0], data[1])
 
     def get_wavelength_array(self) -> np.ndarray:
         """Get the wavelength array in meters"""
@@ -376,17 +405,17 @@ class Lightfield(SpectrometerInterface):
     def get_center_wavelength(self) -> float:
         """Refuse a centre wavelength read, as LightField owns the grating.
 
-        :raises NotImplementedError: Always.
+        :raises SpectrometerUnsupportedFeatureError: Always.
         """
-        raise NotImplementedError("LightField owns the grating position")
+        raise SpectrometerUnsupportedFeatureError("LightField owns the grating position")
 
     def set_center_wavelength(self, value: float):
         """Refuse a centre wavelength move, as LightField owns the grating.
 
         :param value: Ignored.
-        :raises NotImplementedError: Always.
+        :raises SpectrometerUnsupportedFeatureError: Always.
         """
-        raise NotImplementedError("LightField owns the grating position")
+        raise SpectrometerUnsupportedFeatureError("LightField owns the grating position")
 
     @property
     def is_running(self):
