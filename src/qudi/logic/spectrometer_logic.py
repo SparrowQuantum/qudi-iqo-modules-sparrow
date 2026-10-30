@@ -141,31 +141,39 @@ class SpectrometerLogic(LogicBase):
         self._acquisition_running = True
         self.sig_state_updated.emit()
 
-        if self.differential_spectrum_available and self._differential_spectrum:
-            self.modulation_device().modulation_on()
-
-        # get data from the spectrometer
-        data = np.array(netobtain(self.spectrometer().record_spectrum()))
-        with self._lock:
-            if self._spectrum[0] is None:
-                self._spectrum[0] = data[1, :]
-            else:
-                self._spectrum[0] += data[1, :]
-
-            self._wavelength = data[0, :]
-            self._repetitions_spectrum += 1
-
-        if self.differential_spectrum_available and self._differential_spectrum:
-            self.modulation_device().modulation_off()
-            data = np.array(netobtain(self.spectrometer().record_spectrum()))
+        differential = self.differential_spectrum_available and self._differential_spectrum
+        try:
+            if differential:
+                self.modulation_device().modulation_on()
+            try:
+                # get data from the spectrometer
+                data = np.array(netobtain(self.spectrometer().record_spectrum()))
+            finally:
+                if differential:
+                    self.modulation_device().modulation_off()
             with self._lock:
-                if self._spectrum[1] is None:
-                    self._spectrum[1] = data[1, :]
+                if self._spectrum[0] is None:
+                    self._spectrum[0] = data[1, :]
                 else:
-                    self._spectrum[1] += data[1, :]
-        else:
-            with self._lock:
-                self._spectrum[1] = None
+                    self._spectrum[0] += data[1, :]
+
+                self._wavelength = data[0, :]
+                self._repetitions_spectrum += 1
+
+            if differential:
+                data = np.array(netobtain(self.spectrometer().record_spectrum()))
+                with self._lock:
+                    if self._spectrum[1] is None:
+                        self._spectrum[1] = data[1, :]
+                    else:
+                        self._spectrum[1] += data[1, :]
+            else:
+                with self._lock:
+                    self._spectrum[1] = None
+        except Exception:
+            self._acquisition_running = False
+            self.sig_state_updated.emit()
+            raise
         self.sig_data_updated.emit()
 
         if self._constant_acquisition and not self._stop_acquisition \
@@ -194,16 +202,21 @@ class SpectrometerLogic(LogicBase):
         self._acquisition_running = True
         self.sig_state_updated.emit()
 
-        # get data from the spectrometer
-        data = np.array(netobtain(self.spectrometer().record_spectrum()))
-        with self._lock:
-            if self._background is None:
-                self._background = data[1, :]
-            else:
-                self._background += data[1, :]
+        try:
+            # get data from the spectrometer
+            data = np.array(netobtain(self.spectrometer().record_spectrum()))
+            with self._lock:
+                if self._background is None:
+                    self._background = data[1, :]
+                else:
+                    self._background += data[1, :]
 
-            self._wavelength = data[0, :]
-            self._repetitions_background += 1
+                self._wavelength = data[0, :]
+                self._repetitions_background += 1
+        except Exception:
+            self._acquisition_running = False
+            self.sig_state_updated.emit()
+            raise
         self.sig_data_updated.emit()
 
         if self._constant_acquisition and not self._stop_acquisition\

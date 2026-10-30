@@ -19,7 +19,11 @@ You should have received a copy of the GNU Lesser General Public License along w
 If not, see <https://www.gnu.org/licenses/>.
 """
 
-from qudi.interface.spectrometer_interface import SpectrometerInterface
+from qudi.interface.spectrometer_interface import (
+    SpectrometerConstraints,
+    SpectrometerInterface,
+    Spectrum,
+)
 
 from time import strftime, localtime
 
@@ -43,6 +47,22 @@ class SpectrometerDummy(SpectrometerInterface):
         super().__init__(*args, **kwargs)
         self._exposure = 0.5
         self._shutter_open = True
+        self._centre_wavelength = 740e-9
+        self._stop_requested = False
+        self._connected = False
+        self._constraints = SpectrometerConstraints(
+            value_unit='counts',
+            exposure_time_range=(1e-3, 3600.0),
+            center_wavelength_range=(300e-9, 1100e-9),
+            has_shutter=True,
+            can_stop_acquisition=True,
+            has_hardware_background=False,
+        )
+
+    @property
+    def constraints(self):
+        """Simulated device limits."""
+        return self._constraints
 
     def on_activate(self):
         """Activate module."""
@@ -50,21 +70,35 @@ class SpectrometerDummy(SpectrometerInterface):
 
     def on_deactivate(self):
         """Deactivate module."""
-        pass
+        self.close_connection()
+
+    def open_connection(self):
+        """Open the simulated device, which always succeeds."""
+        self._connected = True
+
+    def close_connection(self):
+        """Close the simulated device."""
+        self._connected = False
 
     def record_spectrum(self):
         """Record a dummy spectrum.
 
-        @return ndarray: 1024-value ndarray containing wavelength and intensity of simulated spectrum
+        :return: 1024 simulated wavelengths in metres and their intensities.
         """
+        self.open_connection()
         length = 1024
 
+        # The window follows the centre wavelength, keeping the emitter line
+        # at the same offset from it as in the original fixed 730-750 nm span
+        centre = self._centre_wavelength * 1e9
         data = np.empty((2, length), dtype=np.double)
-        data[0] = np.arange(730, 750, 20 / length)
+        data[0] = np.arange(centre - 10, centre + 10, 20 / length)
         data[1] = np.random.uniform(0, 1000, length)
 
         if self._shutter_open:
-            data[1] = data[1] + 1500 * np.exp(-((data[0] - 736.5) ** 2) / 0.225**2)
+            data[1] = data[1] + 1500 * np.exp(
+                -((data[0] - (centre - 3.5)) ** 2) / 0.225**2
+            )
 
         # lorentz, params = self._fitLogic.make_multiplelorentzian_model(no_of_functions=4)
         # sigma = 0.05
@@ -86,8 +120,16 @@ class SpectrometerDummy(SpectrometerInterface):
 
         data[0] = data[0] * 1e-9  # return to logic in SI units (m)
 
-        time.sleep(self.exposure_time)
-        return data
+        # Sleep in slices rather than one block, so stop_acquisition can end
+        # the exposure the way it ends one on hardware
+        self._stop_requested = False
+        remaining = self._exposure
+        while remaining > 0 and not self._stop_requested:
+            slice_s = min(0.05, remaining)
+            time.sleep(slice_s)
+            remaining -= slice_s
+
+        return Spectrum(data[0], data[1])
 
     @property
     def exposure_time(self):
@@ -97,6 +139,9 @@ class SpectrometerDummy(SpectrometerInterface):
     @exposure_time.setter
     def exposure_time(self, value):
         """Set exposure time."""
+        low, high = self._constraints.exposure_time_range
+        if not low <= value <= high:
+            raise ValueError(f'Exposure time {value} s outside [{low}, {high}] s')
         self._exposure = float(value)
 
     @property
@@ -121,3 +166,24 @@ class SpectrometerDummy(SpectrometerInterface):
     def acquire_background(self):
         """Hardware background acquisition. Not supported."""
         return False
+
+    def stop_acquisition(self):
+        """End the simulated exposure early."""
+        self._stop_requested = True
+
+    def get_center_wavelength(self):
+        """Get the simulated centre wavelength.
+
+        :return: Centre wavelength in metres.
+        """
+        return self._centre_wavelength
+
+    def set_center_wavelength(self, value):
+        """Set the simulated centre wavelength.
+
+        :param value: Centre wavelength in metres.
+        """
+        low, high = self._constraints.center_wavelength_range
+        if not low <= value <= high:
+            raise ValueError(f'Centre wavelength {value} m outside [{low}, {high}] m')
+        self._centre_wavelength = float(value)
