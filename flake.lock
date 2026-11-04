@@ -60,15 +60,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1782303918,
-        "narHash": "sha256-Rf7zbLEdJaM9PSun6vaJZ/P2jPmK67pv/K/VV7jEZvA=",
+        "lastModified": 1793825685,
+        "narHash": "sha256-WaEC/lM+6riAzcU+MgGgQ9sjSYQcU0S2lRZQGGgpsIU=",
         "owner": "SparrowQuantum",
         "repo": "qudi-core-sparrow",
-        "rev": "b691ec1f70ccfc355bf7771b5df6922472be2fcf",
+        "rev": "47eb1d3232b36ebfafc9b1c52392c59474694318",
         "type": "github"
       },
       "original": {
         "owner": "SparrowQuantum",
+        "ref": "feat/ephemeral-namespace-port",
         "repo": "qudi-core-sparrow",
         "type": "github"
       }
