@@ -9,6 +9,7 @@
 - Fix `installtion.py` for arbitrary Python versions
 
 ### New Features
+- `just qudi`, `just qudi-headless` and `just notebook` take a `PORT`, defaulting to 0 for a free port, so several users can run qudi on one host without port collisions; `just qudi 18861` restores the old one
 
 ### Other
 
